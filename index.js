@@ -338,40 +338,61 @@ async function init() {
             });
         }
 
-        // 2. Inject Toggle Button into Magic Wand Menu (#extensions_menu)
-        const injectIntoMagicWand = () => {
+        // 2. Inject Toggle Button into Magic Wand Menu
+        const injectButton = () => {
+            if (document.getElementById('st-text-recorder-toggle-btn')) return; // Already injected
+
+            // Attempt 1: The standard #extensions_menu (if it exists)
             const wandMenu = document.getElementById('extensions_menu');
-            if (wandMenu && !document.getElementById('st-text-recorder-toggle-btn')) {
+            if (wandMenu) {
                 const btn = document.createElement('div');
                 btn.className = 'list-group-item flex-container flexGapSm interactable';
                 btn.id = 'st-text-recorder-toggle-btn';
-                btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录本</div>`;
+                btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录器</div>`;
                 wandMenu.appendChild(btn);
 
-                btn.addEventListener('click', () => {
-                    const container = document.getElementById('st-text-recorder-container');
-                    container.style.display = container.style.display === 'none' ? 'flex' : 'none';
-                    if (container.style.display === 'flex') {
-                        renderTree();
-                    }
-                });
+                btn.addEventListener('click', togglePopup);
                 updateToggleButtonVisibility();
-                console.log('[Text Recorder] Button successfully injected into wand menu.');
+                console.log('[Text Recorder] Injected into #extensions_menu');
+                return;
+            }
+        };
+
+        const togglePopup = () => {
+            const container = document.getElementById('st-text-recorder-container');
+            container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+            if (container.style.display === 'flex') {
+                renderTree();
             }
         };
         
-        // Try multiple times to inject into wand menu, as ST builds it asynchronously
-        injectIntoMagicWand();
-        setTimeout(injectIntoMagicWand, 1000);
-        setTimeout(injectIntoMagicWand, 3000);
+        // Try to inject
+        injectButton();
+        setTimeout(injectButton, 2000);
+        setTimeout(injectButton, 5000);
         
-        // Listen to wand click just in case
-        const wandButton = document.getElementById('send_textarea_wand') || document.querySelector('.fa-wand-magic-sparkles')?.closest('.menu_button');
-        if (wandButton) {
-            wandButton.addEventListener('click', () => {
-                setTimeout(injectIntoMagicWand, 100);
-            });
-        }
+        // Also listen to ANY clicks on the magic wand to inject into dynamic popups
+        document.addEventListener('click', (e) => {
+            const wandBtn = e.target.closest('#send_textarea_wand, .fa-wand-magic-sparkles');
+            if (wandBtn) {
+                setTimeout(() => {
+                    // Try to find the opened popup list
+                    const openPopups = document.querySelectorAll('.popup, .list-group');
+                    for (const popup of openPopups) {
+                        if (popup.style.display !== 'none' && !popup.querySelector('#st-text-recorder-toggle-btn')) {
+                            const btn = document.createElement('div');
+                            btn.className = 'list-group-item flex-container flexGapSm interactable';
+                            btn.id = 'st-text-recorder-toggle-btn';
+                            btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录器</div>`;
+                            btn.addEventListener('click', togglePopup);
+                            popup.appendChild(btn);
+                            updateToggleButtonVisibility();
+                            break;
+                        }
+                    }
+                }, 100);
+            }
+        });
 
         // 3. Setup Floating Window UI Events
         const container = document.getElementById('st-text-recorder-container');

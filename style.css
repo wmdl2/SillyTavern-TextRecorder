@@ -208,15 +208,22 @@
     display: flex;
 }
 .st-tree-action-btn {
-    font-size: 12px;
-    padding: 2px 4px;
-    border-radius: 3px;
-    opacity: 0.6;
+    font-size: 13px;
+    padding: 3px 5px;
+    border-radius: 4px;
+    opacity: 0.8;
+    background: rgba(128, 128, 128, 0.2);
+    transition: all 0.1s;
+    cursor: pointer;
 }
 .st-tree-action-btn:hover {
     opacity: 1;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(128, 128, 128, 0.4);
+    transform: scale(1.1);
 }
+.st-tree-add-file-btn { color: #4CAF50; }
+.st-tree-add-folder-btn { color: #2196F3; }
+.fa-trash.st-tree-action-btn { color: #f44336 !important; }
 
 /* Inline Input */
 .st-tree-inline-input {

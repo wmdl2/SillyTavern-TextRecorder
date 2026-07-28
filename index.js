@@ -8,7 +8,7 @@ let currentTheme = 'default';
 // Helper to get extension context safely in 1.18.0+
 function getExtensionSettings() {
     const context = SillyTavern?.getContext?.();
-    return context?.extension_settings || window.extension_settings || {};
+    return context?.extensionSettings || context?.extension_settings || window.extension_settings || {};
 }
 
 function getSaveSettingsDebounced() {
@@ -90,7 +90,7 @@ function deleteNodeFromTree(nodes, id) {
 function applyTheme() {
     const container = document.getElementById('st-text-recorder-container');
     if (!container) return;
-    container.classList.remove('st-theme-dark', 'st-theme-blue', 'st-theme-green', 'st-theme-amber');
+    container.classList.remove('st-theme-dark', 'st-theme-blue', 'st-theme-green', 'st-theme-amber', 'st-theme-light', 'st-theme-warm', 'st-theme-cyan');
     if (currentTheme !== 'default') {
         container.classList.add(`st-theme-${currentTheme}`);
     }
@@ -187,10 +187,19 @@ function renderTree() {
                     actionsDiv.appendChild(addFolderBtn);
                 }
 
+                const renameBtn = document.createElement('i');
+                renameBtn.className = 'fa-solid fa-pen st-tree-action-btn';
+                renameBtn.title = '重命名';
+                renameBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    node.isEditing = true;
+                    renderTree();
+                });
+                actionsDiv.appendChild(renameBtn);
+
                 const deleteBtn = document.createElement('i');
                 deleteBtn.className = 'fa-solid fa-trash st-tree-action-btn';
                 deleteBtn.title = '删除';
-                deleteBtn.style.color = '#ff6b6b';
                 deleteBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const msg = node.type === 'folder' 
@@ -213,6 +222,12 @@ function renderTree() {
                 itemDiv.appendChild(labelDiv);
 
                 // Events
+                labelDiv.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    node.isEditing = true;
+                    renderTree();
+                });
+
                 labelDiv.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (node.type === 'folder') {

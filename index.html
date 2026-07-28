@@ -6,6 +6,9 @@
             <span>文本记录本</span>
         </div>
         <div class="st-text-recorder-controls">
+            <div id="st-text-recorder-minimize" class="st-text-recorder-icon-btn" title="最小化">
+                <i class="fa-solid fa-minus"></i>
+            </div>
             <div id="st-text-recorder-close" class="st-text-recorder-close-btn" title="关闭">
                 <i class="fa-solid fa-xmark"></i>
             </div>
@@ -70,6 +73,17 @@
         <div class="settings_section flex-container">
             <input type="checkbox" id="st-text-recorder-enable-checkbox">
             <label for="st-text-recorder-enable-checkbox">启用文本记录器</label>
+        </div>
+        <hr class="sysHR" />
+        <div class="settings_section flex-container alignitemscenter flexGapSm">
+            <label>悬浮窗主题色:</label>
+            <select id="st-text-recorder-theme-select" class="text_pole">
+                <option value="default">默认 (跟随酒馆)</option>
+                <option value="dark">纯黑 (Dark)</option>
+                <option value="blue">深蓝 (Navy)</option>
+                <option value="green">墨绿 (Forest)</option>
+                <option value="amber">琥珀 (Amber)</option>
+            </select>
         </div>
         <hr class="sysHR" />
     </div>

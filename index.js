@@ -3,6 +3,7 @@ const EXTENSION_NAME = 'st-text-recorder';
 let treeData = [];
 let selectedNodeId = null;
 let isEnabled = true;
+let currentTheme = 'default';
 
 // Helper to get extension context safely in 1.18.0+
 function getExtensionSettings() {
@@ -19,10 +20,11 @@ function getSaveSettingsDebounced() {
 function saveSettings() {
     const settings = getExtensionSettings();
     if (!settings[EXTENSION_NAME]) {
-        settings[EXTENSION_NAME] = { tree: [], enabled: true };
+        settings[EXTENSION_NAME] = { tree: [], enabled: true, theme: 'default' };
     }
     settings[EXTENSION_NAME].tree = treeData;
     settings[EXTENSION_NAME].enabled = isEnabled;
+    settings[EXTENSION_NAME].theme = currentTheme;
     
     const saveFunc = getSaveSettingsDebounced();
     if (typeof saveFunc === 'function') {
@@ -37,16 +39,13 @@ function generateId() {
 
 // Tree Data Operations
 function addNode(parentId, type) {
-    const typeName = type === 'folder' ? '文件夹' : '文本';
-    const name = prompt(`请输入新${typeName}的名称:`, `新建${typeName}`);
-    if (!name) return;
-
     const newNode = {
         id: generateId(),
         type: type,
-        name: name,
+        name: '', // Empty initially for inline editing
         content: type === 'file' ? '' : undefined,
-        children: type === 'folder' ? [] : undefined
+        children: type === 'folder' ? [] : undefined,
+        isEditing: true // flag for render
     };
 
     if (parentId) {
@@ -85,6 +84,16 @@ function deleteNodeFromTree(nodes, id) {
     return false;
 }
 
+// Apply Theme
+function applyTheme() {
+    const container = document.getElementById('st-text-recorder-container');
+    if (!container) return;
+    container.classList.remove('st-theme-dark', 'st-theme-blue', 'st-theme-green', 'st-theme-amber');
+    if (currentTheme !== 'default') {
+        container.classList.add(`st-theme-${currentTheme}`);
+    }
+}
+
 // UI Rendering
 function renderTree() {
     const treeContainer = document.getElementById('st-text-recorder-tree');
@@ -102,55 +111,117 @@ function renderTree() {
             
             const icon = document.createElement('i');
             icon.className = node.type === 'folder' ? 'fa-solid fa-folder st-tree-item-icon' : 'fa-solid fa-file-lines st-tree-item-icon';
-            
-            const text = document.createElement('span');
-            text.className = 'st-tree-item-text';
-            text.textContent = node.name;
-            
             labelDiv.appendChild(icon);
-            labelDiv.appendChild(text);
-            itemDiv.appendChild(labelDiv);
-            
-            // Events
-            labelDiv.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (node.type === 'folder') {
-                    if (childrenContainer) {
-                        childrenContainer.classList.toggle('collapsed');
-                        icon.className = childrenContainer.classList.contains('collapsed') 
-                            ? 'fa-solid fa-folder st-tree-item-icon' 
-                            : 'fa-solid fa-folder-open st-tree-item-icon';
-                    }
-                    selectNode(node.id);
-                } else {
-                    selectNode(node.id);
-                }
-            });
 
-            labelDiv.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                selectNode(node.id);
-                if (node.type === 'folder') {
-                    const action = confirm(`确定要在 [${node.name}] 中新建文本吗？\n点【确定】新建文本，点【取消】可选择新建文件夹。`);
-                    if (action) {
-                        addNode(node.id, 'file');
-                    } else {
-                        const addFolder = confirm(`要在 [${node.name}] 中新建文件夹吗？`);
-                        if (addFolder) addNode(node.id, 'folder');
+            if (node.isEditing) {
+                // Inline Input
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'st-tree-inline-input';
+                input.value = node.name;
+                input.placeholder = node.type === 'folder' ? '文件夹名称...' : '文本名称...';
+                
+                const saveName = () => {
+                    if (input.value.trim() !== '') {
+                        node.name = input.value.trim();
+                    } else if (node.name === '') {
+                        // Deleted if empty and new
+                        deleteNodeFromTree(treeData, node.id);
                     }
+                    node.isEditing = false;
+                    saveSettings();
+                    renderTree();
+                };
+
+                input.addEventListener('blur', saveName);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') saveName();
+                    if (e.key === 'Escape') {
+                        if (node.name === '') deleteNodeFromTree(treeData, node.id);
+                        node.isEditing = false;
+                        saveSettings();
+                        renderTree();
+                    }
+                });
+
+                labelDiv.appendChild(input);
+                itemDiv.appendChild(labelDiv);
+                parentElement.appendChild(itemDiv);
+                
+                // Focus immediately
+                setTimeout(() => input.focus(), 0);
+            } else {
+                const text = document.createElement('span');
+                text.className = 'st-tree-item-text';
+                text.textContent = node.name;
+                labelDiv.appendChild(text);
+
+                // Hover Actions (only for folders)
+                if (node.type === 'folder') {
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.className = 'st-tree-item-actions';
+                    
+                    const addFileBtn = document.createElement('i');
+                    addFileBtn.className = 'fa-solid fa-file-circle-plus st-tree-action-btn';
+                    addFileBtn.title = '新建文本';
+                    addFileBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (childrenContainer) childrenContainer.classList.remove('collapsed');
+                        icon.className = 'fa-solid fa-folder-open st-tree-item-icon';
+                        addNode(node.id, 'file');
+                    });
+
+                    const addFolderBtn = document.createElement('i');
+                    addFolderBtn.className = 'fa-solid fa-folder-plus st-tree-action-btn';
+                    addFolderBtn.title = '新建文件夹';
+                    addFolderBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (childrenContainer) childrenContainer.classList.remove('collapsed');
+                        icon.className = 'fa-solid fa-folder-open st-tree-item-icon';
+                        addNode(node.id, 'folder');
+                    });
+
+                    actionsDiv.appendChild(addFileBtn);
+                    actionsDiv.appendChild(addFolderBtn);
+                    labelDiv.appendChild(actionsDiv);
                 }
-            });
-            
-            let childrenContainer = null;
-            if (node.type === 'folder' && node.children) {
-                childrenContainer = document.createElement('div');
-                childrenContainer.className = 'st-tree-children collapsed';
-                buildTreeHTML(node.children, childrenContainer);
-                itemDiv.appendChild(childrenContainer);
+                
+                itemDiv.appendChild(labelDiv);
+
+                // Events
+                labelDiv.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (node.type === 'folder') {
+                        if (childrenContainer) {
+                            childrenContainer.classList.toggle('collapsed');
+                            icon.className = childrenContainer.classList.contains('collapsed') 
+                                ? 'fa-solid fa-folder st-tree-item-icon' 
+                                : 'fa-solid fa-folder-open st-tree-item-icon';
+                        }
+                        selectNode(node.id);
+                    } else {
+                        selectNode(node.id);
+                    }
+                });
+
+                // Context menu to rename
+                labelDiv.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    node.isEditing = true;
+                    renderTree();
+                });
+                
+                let childrenContainer = null;
+                if (node.type === 'folder' && node.children) {
+                    childrenContainer = document.createElement('div');
+                    childrenContainer.className = 'st-tree-children collapsed';
+                    buildTreeHTML(node.children, childrenContainer);
+                    itemDiv.appendChild(childrenContainer);
+                }
+                
+                parentElement.appendChild(itemDiv);
             }
-            
-            parentElement.appendChild(itemDiv);
         });
     }
     
@@ -167,7 +238,7 @@ function selectNode(id) {
     const textarea = document.getElementById('st-text-recorder-textarea');
     const titleSpan = document.getElementById('st-text-recorder-current-title');
     
-    if (node) {
+    if (node && !node.isEditing) {
         if (node.type === 'file') {
             editorArea.style.display = 'flex';
             emptyState.style.display = 'none';
@@ -176,12 +247,12 @@ function selectNode(id) {
         } else {
             editorArea.style.display = 'none';
             emptyState.style.display = 'flex';
-            emptyState.innerHTML = `<span>📂 文件夹：${node.name} <br> <small>(在左侧右键点击该文件夹可添加子项)</small></span>`;
+            emptyState.innerHTML = `<span>📂 文件夹：${node.name}</span>`;
         }
     } else {
         editorArea.style.display = 'none';
         emptyState.style.display = 'flex';
-        emptyState.innerHTML = `<span>请在左侧选择或新建一个文本以开始编辑...</span>`;
+        emptyState.innerHTML = `<span>请在左侧选择或新建一个文本以开始编辑...<br><br><small>(右键点击可重命名文件夹/文件)</small></span>`;
     }
 }
 
@@ -234,7 +305,7 @@ function makeResizable(container, handle) {
     });
 
     document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
+        if (!isResizing || container.classList.contains('minimized')) return;
         const width = startWidth + (e.clientX - startX);
         const height = startHeight + (e.clientY - startY);
         container.style.width = `${Math.max(300, width)}px`;
@@ -262,7 +333,8 @@ function makeSidebarResizable(sidebar, handle) {
     });
 
     document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
+        const container = document.getElementById('st-text-recorder-container');
+        if (!isResizing || (container && container.classList.contains('minimized'))) return;
         const width = startWidth + (e.clientX - startX);
         sidebar.style.width = `${Math.max(100, Math.min(width, 400))}px`;
     });
@@ -294,40 +366,40 @@ async function init() {
         // Ensure settings exist and load data safely
         const settings = getExtensionSettings();
         if (!settings[EXTENSION_NAME]) {
-            settings[EXTENSION_NAME] = { tree: [], enabled: true };
+            settings[EXTENSION_NAME] = { tree: [], enabled: true, theme: 'default' };
         }
         treeData = settings[EXTENSION_NAME].tree || [];
         isEnabled = settings[EXTENSION_NAME].enabled !== false;
+        currentTheme = settings[EXTENSION_NAME].theme || 'default';
         
-        // 1. Fetch HTML template dynamically
-        // Use import.meta.url to safely construct the path to index.html to avoid 404s
+        // Fetch HTML template dynamically
         const myPath = import.meta.url;
         const htmlUrl = new URL('index.html', myPath).href;
-        
         const htmlResponse = await fetch(htmlUrl);
-        if (!htmlResponse.ok) {
-            throw new Error(`Failed to load index.html from ${htmlUrl}`);
-        }
+        if (!htmlResponse.ok) throw new Error(`Failed to load index.html from ${htmlUrl}`);
         const htmlText = await htmlResponse.text();
         
-        // Parse HTML to separate settings block from main window
+        // Parse HTML
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, 'text/html');
         const mainWindowHtml = doc.getElementById('st-text-recorder-container').outerHTML;
         const settingsPanelHtml = doc.getElementById('st-text-recorder-settings-panel').outerHTML;
 
-        // Insert main window to body
+        // Insert main window
         if (!document.getElementById('st-text-recorder-container')) {
             document.body.insertAdjacentHTML('beforeend', mainWindowHtml);
         }
         
-        // Insert settings panel to #extensions_settings
+        // Insert settings panel
         const extensionSettingsPanel = document.getElementById('extensions_settings');
         if (extensionSettingsPanel && !document.getElementById('st-text-recorder-settings-panel')) {
             extensionSettingsPanel.insertAdjacentHTML('beforeend', settingsPanelHtml);
         }
 
-        // Settings Toggle Logic
+        // Apply theme immediately
+        applyTheme();
+
+        // Settings Logic
         const enableCheckbox = document.getElementById('st-text-recorder-enable-checkbox');
         if (enableCheckbox) {
             enableCheckbox.checked = isEnabled;
@@ -337,12 +409,20 @@ async function init() {
                 updateToggleButtonVisibility();
             });
         }
+        const themeSelect = document.getElementById('st-text-recorder-theme-select');
+        if (themeSelect) {
+            themeSelect.value = currentTheme;
+            themeSelect.addEventListener('change', (e) => {
+                currentTheme = e.target.value;
+                saveSettings();
+                applyTheme();
+            });
+        }
 
         // 2. Inject Toggle Button into Magic Wand Menu
         const injectButton = () => {
             if (document.getElementById('st-text-recorder-toggle-btn')) return; // Already injected
 
-            // Attempt 1: The standard #extensionsMenu (camelCase in 1.18+)
             const wandMenu = document.getElementById('extensionsMenu') || document.getElementById('extensions_menu');
             if (wandMenu) {
                 const btn = document.createElement('div');
@@ -368,6 +448,7 @@ async function init() {
             const container = document.getElementById('st-text-recorder-container');
             container.style.display = container.style.display === 'none' ? 'flex' : 'none';
             if (container.style.display === 'flex') {
+                container.classList.remove('minimized');
                 renderTree();
             }
         };
@@ -377,12 +458,10 @@ async function init() {
         setTimeout(injectButton, 2000);
         setTimeout(injectButton, 5000);
         
-        // Also listen to ANY clicks on the magic wand to inject into dynamic popups
         document.addEventListener('click', (e) => {
             const wandBtn = e.target.closest('#send_textarea_wand, .fa-wand-magic-sparkles');
             if (wandBtn) {
                 setTimeout(() => {
-                    // Try to find the opened popup list
                     const openPopups = document.querySelectorAll('.popup, .list-group, #slash_commands_popup, #extensionsMenu, #extensions_menu_dropdown');
                     for (const popup of openPopups) {
                         if (popup.style.display !== 'none' && !popup.querySelector('#st-text-recorder-toggle-btn')) {
@@ -402,26 +481,23 @@ async function init() {
             }
         });
 
-        // 2.5 ADD SLASH COMMAND (Official API)
+        // ADD SLASH COMMAND
         const context = SillyTavern.getContext();
         if (context.registerSlashCommand) {
             context.registerSlashCommand(
                 'recorder',
-                () => {
-                    togglePopup();
-                    return '';
-                },
+                () => { togglePopup(); return ''; },
                 [],
                 '打开或关闭文本记录器悬浮窗 (Toggle Text Recorder)',
                 true,
                 true
             );
-            console.log('[Text Recorder] Slash command /recorder registered.');
         }
 
         // 3. Setup Floating Window UI Events
         const container = document.getElementById('st-text-recorder-container');
         const closeBtn = document.getElementById('st-text-recorder-close');
+        const minimizeBtn = document.getElementById('st-text-recorder-minimize');
         const header = document.getElementById('st-text-recorder-header');
         const resizeHandle = document.getElementById('st-text-recorder-resize-handle');
         const sidebar = document.querySelector('.st-text-recorder-sidebar');
@@ -430,27 +506,22 @@ async function init() {
         closeBtn.addEventListener('click', () => {
             container.style.display = 'none';
         });
+        
+        minimizeBtn.addEventListener('click', () => {
+            container.classList.toggle('minimized');
+        });
 
         makeDraggable(container, header);
         makeResizable(container, resizeHandle);
         makeSidebarResizable(sidebar, sidebarResizer);
 
+        // Global Sidebar Add Buttons
         document.getElementById('st-text-recorder-add-folder').addEventListener('click', () => {
-            let targetId = null;
-            if (selectedNodeId) {
-                const node = findNode(treeData, selectedNodeId);
-                if (node && node.type === 'folder') targetId = selectedNodeId;
-            }
-            addNode(targetId, 'folder');
+            addNode(null, 'folder');
         });
 
         document.getElementById('st-text-recorder-add-file').addEventListener('click', () => {
-            let targetId = null;
-            if (selectedNodeId) {
-                const node = findNode(treeData, selectedNodeId);
-                if (node && node.type === 'folder') targetId = selectedNodeId;
-            }
-            addNode(targetId, 'file');
+            addNode(null, 'file');
         });
 
         const textarea = document.getElementById('st-text-recorder-textarea');
@@ -524,7 +595,6 @@ jQuery(() => {
     if (context && context.eventSource && context.event_types) {
         context.eventSource.on(context.event_types.APP_READY, init);
     } else {
-        // Fallback for older/unusual ST versions
         setTimeout(init, 2000);
     }
 });

@@ -281,13 +281,20 @@ function selectNode(id) {
 }
 
 // Dragging and Resizing Logic
-function makeDraggable(container, handle) {
+function makeDraggable(container, header) {
     let isDragging = false;
     let startX, startY, initialX, initialY;
+    let wasDragged = false;
 
-    handle.addEventListener('mousedown', (e) => {
-        if (e.target.closest('.st-text-recorder-controls')) return;
+    container.addEventListener('mousedown', (e) => {
+        // If NOT minimized, only allow drag from header
+        if (!container.classList.contains('minimized')) {
+            if (!e.target.closest('.st-text-recorder-header')) return;
+            if (e.target.closest('.st-text-recorder-controls')) return; // Ignore buttons in header
+        }
+        
         isDragging = true;
+        wasDragged = false;
         startX = e.clientX;
         startY = e.clientY;
         const rect = container.getBoundingClientRect();
@@ -300,6 +307,9 @@ function makeDraggable(container, handle) {
         if (!isDragging) return;
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            wasDragged = true;
+        }
         container.style.left = `${initialX + dx}px`;
         container.style.top = `${initialY + dy}px`;
         container.style.right = 'auto'; // clear right to use left/top
@@ -309,6 +319,18 @@ function makeDraggable(container, handle) {
         if (isDragging) {
             isDragging = false;
             document.body.style.userSelect = '';
+        }
+    });
+
+    // Expand when clicking the minimized icon, but ONLY if it wasn't a drag action
+    container.addEventListener('click', (e) => {
+        if (container.classList.contains('minimized')) {
+            if (wasDragged) {
+                e.preventDefault();
+                e.stopPropagation();
+            } else {
+                container.classList.remove('minimized');
+            }
         }
     });
 }
@@ -534,12 +556,6 @@ async function init() {
         minimizeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             container.classList.add('minimized');
-        });
-
-        container.addEventListener('click', (e) => {
-            if (container.classList.contains('minimized')) {
-                container.classList.remove('minimized');
-            }
         });
 
         makeDraggable(container, header);

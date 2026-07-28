@@ -1,0 +1,60 @@
+<div id="st-text-recorder-container" class="st-text-recorder-container" style="display: none;">
+    <div id="st-text-recorder-header" class="st-text-recorder-header">
+        <div class="st-text-recorder-title">
+            <i class="fa-solid fa-book"></i>
+            <span>Text Recorder</span>
+        </div>
+        <div class="st-text-recorder-controls">
+            <div id="st-text-recorder-close" class="st-text-recorder-close-btn" title="Close">
+                <i class="fa-solid fa-xmark"></i>
+            </div>
+        </div>
+    </div>
+    <div class="st-text-recorder-body">
+        <div class="st-text-recorder-sidebar">
+            <div class="st-text-recorder-toolbar">
+                <div id="st-text-recorder-add-folder" class="st-text-recorder-icon-btn" title="New Category (Folder)">
+                    <i class="fa-solid fa-folder-plus"></i>
+                </div>
+                <div id="st-text-recorder-add-file" class="st-text-recorder-icon-btn" title="New Text (File)">
+                    <i class="fa-solid fa-file-circle-plus"></i>
+                </div>
+            </div>
+            <div id="st-text-recorder-tree" class="st-text-recorder-tree">
+                <!-- Tree items will be injected here -->
+            </div>
+        </div>
+        <div class="st-text-recorder-resizer-x" id="st-text-recorder-resizer-x"></div>
+        <div id="st-text-recorder-editor-area" class="st-text-recorder-editor-area" style="display: none;">
+            <div class="st-text-recorder-editor-toolbar">
+                <div class="st-text-recorder-toolbar-left">
+                    <span id="st-text-recorder-current-title" class="st-text-recorder-current-title"></span>
+                </div>
+                <div class="st-text-recorder-toolbar-right">
+                    <div id="st-text-recorder-copy" class="st-text-recorder-icon-btn" title="Copy">
+                        <i class="fa-solid fa-copy"></i>
+                    </div>
+                    <div id="st-text-recorder-paste" class="st-text-recorder-icon-btn" title="Paste">
+                        <i class="fa-solid fa-paste"></i>
+                    </div>
+                    <div id="st-text-recorder-clear" class="st-text-recorder-icon-btn" title="Clear">
+                        <i class="fa-solid fa-eraser"></i>
+                    </div>
+                    <div id="st-text-recorder-save" class="st-text-recorder-icon-btn st-text-recorder-save-btn" title="Save">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                    </div>
+                    <div id="st-text-recorder-delete" class="st-text-recorder-icon-btn st-text-recorder-delete-btn" title="Delete">
+                        <i class="fa-solid fa-trash"></i>
+                    </div>
+                </div>
+            </div>
+            <textarea id="st-text-recorder-textarea" class="st-text-recorder-textarea text_pole" placeholder="Type here... Remember to click Save!"></textarea>
+        </div>
+        <div id="st-text-recorder-empty-state" class="st-text-recorder-empty-state">
+            <span>Select or create a text file to start writing...</span>
+        </div>
+    </div>
+    <div id="st-text-recorder-resize-handle" class="st-text-recorder-resize-handle">
+        <i class="fa-solid fa-caret-down" style="transform: rotate(-45deg);"></i>
+    </div>
+</div>

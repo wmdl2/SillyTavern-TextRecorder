@@ -53,6 +53,7 @@ function addNode(parentId, type) {
         if (parent && parent.type === 'folder') {
             if (!parent.children) parent.children = [];
             parent.children.push(newNode);
+            parent.isOpen = true; // Force open folder to show inline input
         }
     } else {
         treeData.push(newNode);
@@ -111,7 +112,11 @@ function renderTree() {
             if (node.id === selectedNodeId) labelDiv.classList.add('selected');
             
             const icon = document.createElement('i');
-            icon.className = node.type === 'folder' ? 'fa-solid fa-folder st-tree-item-icon' : 'fa-solid fa-file-lines st-tree-item-icon';
+            if (node.type === 'folder') {
+                icon.className = node.isOpen ? 'fa-solid fa-folder-open st-tree-item-icon' : 'fa-solid fa-folder st-tree-item-icon';
+            } else {
+                icon.className = 'fa-solid fa-file-lines st-tree-item-icon';
+            }
             labelDiv.appendChild(icon);
 
             if (node.isEditing) {
@@ -163,22 +168,18 @@ function renderTree() {
 
                 if (node.type === 'folder') {
                     const addFileBtn = document.createElement('i');
-                    addFileBtn.className = 'fa-solid fa-file-circle-plus st-tree-action-btn';
+                    addFileBtn.className = 'fa-solid fa-file-circle-plus st-tree-action-btn st-tree-add-file-btn';
                     addFileBtn.title = '新建文本';
                     addFileBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        if (childrenContainer) childrenContainer.classList.remove('collapsed');
-                        icon.className = 'fa-solid fa-folder-open st-tree-item-icon';
                         addNode(node.id, 'file');
                     });
 
                     const addFolderBtn = document.createElement('i');
-                    addFolderBtn.className = 'fa-solid fa-folder-plus st-tree-action-btn';
+                    addFolderBtn.className = 'fa-solid fa-folder-plus st-tree-action-btn st-tree-add-folder-btn';
                     addFolderBtn.title = '新建文件夹';
                     addFolderBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        if (childrenContainer) childrenContainer.classList.remove('collapsed');
-                        icon.className = 'fa-solid fa-folder-open st-tree-item-icon';
                         addNode(node.id, 'folder');
                     });
 
@@ -215,13 +216,13 @@ function renderTree() {
                 labelDiv.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (node.type === 'folder') {
+                        node.isOpen = !node.isOpen;
                         if (childrenContainer) {
-                            childrenContainer.classList.toggle('collapsed');
-                            icon.className = childrenContainer.classList.contains('collapsed') 
-                                ? 'fa-solid fa-folder st-tree-item-icon' 
-                                : 'fa-solid fa-folder-open st-tree-item-icon';
+                            childrenContainer.className = node.isOpen ? 'st-tree-children' : 'st-tree-children collapsed';
+                            icon.className = node.isOpen ? 'fa-solid fa-folder-open st-tree-item-icon' : 'fa-solid fa-folder st-tree-item-icon';
                         }
                         selectNode(node.id);
+                        saveSettings();
                     } else {
                         selectNode(node.id);
                     }
@@ -238,7 +239,7 @@ function renderTree() {
                 let childrenContainer = null;
                 if (node.type === 'folder' && node.children) {
                     childrenContainer = document.createElement('div');
-                    childrenContainer.className = 'st-tree-children collapsed';
+                    childrenContainer.className = node.isOpen ? 'st-tree-children' : 'st-tree-children collapsed';
                     buildTreeHTML(node.children, childrenContainer);
                     itemDiv.appendChild(childrenContainer);
                 }

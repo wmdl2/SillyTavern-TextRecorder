@@ -36,18 +36,51 @@
     background: rgba(40, 30, 10, 0.95);
     border-color: #5a4a2a;
 }
+.st-text-recorder-container.st-theme-light {
+    background: rgba(245, 245, 245, 0.95);
+    border-color: #ccc;
+    color: #222;
+}
+.st-text-recorder-container.st-theme-warm {
+    background: rgba(253, 246, 235, 0.95);
+    border-color: #e0d5c1;
+    color: #4a3c2a;
+}
+.st-text-recorder-container.st-theme-cyan {
+    background: rgba(235, 247, 250, 0.95);
+    border-color: #c1dce0;
+    color: #2a3f4a;
+}
 
 /* Minimized State */
 .st-text-recorder-container.minimized {
-    width: 250px !important;
-    height: 40px !important;
-    resize: none;
+    width: 45px !important;
+    height: 45px !important;
+    border-radius: 50% !important;
     overflow: hidden;
-    transition: width 0.3s ease, height 0.3s ease;
+    cursor: pointer;
+    resize: none;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-radius 0.3s;
 }
+.st-text-recorder-container.minimized:hover {
+    transform: scale(1.05);
+}
+.st-text-recorder-container.minimized .st-text-recorder-header,
 .st-text-recorder-container.minimized .st-text-recorder-body,
 .st-text-recorder-container.minimized .st-text-recorder-resize-handle {
     display: none !important;
+}
+.st-text-recorder-container.minimized::after {
+    content: "\f02d"; /* fa-book */
+    font-family: "Font Awesome 6 Free", "Font Awesome 5 Free";
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 20px;
+    color: inherit;
 }
 
 /* Header */
@@ -188,9 +221,9 @@
 /* Inline Input */
 .st-tree-inline-input {
     flex: 1;
-    background: var(--black50a);
-    color: white;
-    border: 1px solid var(--SmartThemeInteractableColor);
+    background: rgba(0, 0, 0, 0.1);
+    color: inherit;
+    border: 1px solid currentColor;
     border-radius: 3px;
     padding: 2px 5px;
     font-size: 13px;

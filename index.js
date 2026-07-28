@@ -51,6 +51,7 @@ function addNode(parentId, type) {
     if (parentId) {
         const parent = findNode(treeData, parentId);
         if (parent && parent.type === 'folder') {
+            if (!parent.children) parent.children = [];
             parent.children.push(newNode);
         }
     } else {
@@ -156,11 +157,11 @@ function renderTree() {
                 text.textContent = node.name;
                 labelDiv.appendChild(text);
 
-                // Hover Actions (only for folders)
+                // Hover Actions
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'st-tree-item-actions';
+
                 if (node.type === 'folder') {
-                    const actionsDiv = document.createElement('div');
-                    actionsDiv.className = 'st-tree-item-actions';
-                    
                     const addFileBtn = document.createElement('i');
                     addFileBtn.className = 'fa-solid fa-file-circle-plus st-tree-action-btn';
                     addFileBtn.title = '新建文本';
@@ -183,8 +184,30 @@ function renderTree() {
 
                     actionsDiv.appendChild(addFileBtn);
                     actionsDiv.appendChild(addFolderBtn);
-                    labelDiv.appendChild(actionsDiv);
                 }
+
+                const deleteBtn = document.createElement('i');
+                deleteBtn.className = 'fa-solid fa-trash st-tree-action-btn';
+                deleteBtn.title = '删除';
+                deleteBtn.style.color = '#ff6b6b';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const msg = node.type === 'folder' 
+                        ? `确定要删除文件夹 "${node.name}" 以及它里面的所有内容吗？`
+                        : `确定要删除文本 "${node.name}" 吗？`;
+                    if (confirm(msg)) {
+                        deleteNodeFromTree(treeData, node.id);
+                        saveSettings();
+                        if (selectedNodeId === node.id) {
+                            selectedNodeId = null;
+                            selectNode(null);
+                        } else {
+                            renderTree();
+                        }
+                    }
+                });
+                actionsDiv.appendChild(deleteBtn);
+                labelDiv.appendChild(actionsDiv);
                 
                 itemDiv.appendChild(labelDiv);
 
@@ -507,8 +530,15 @@ async function init() {
             container.style.display = 'none';
         });
         
-        minimizeBtn.addEventListener('click', () => {
-            container.classList.toggle('minimized');
+        minimizeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            container.classList.add('minimized');
+        });
+
+        container.addEventListener('click', (e) => {
+            if (container.classList.contains('minimized')) {
+                container.classList.remove('minimized');
+            }
         });
 
         makeDraggable(container, header);
@@ -562,23 +592,6 @@ async function init() {
                     saveSettings();
                     if (window.toastr) window.toastr.success('修改已保存');
                 }
-            }
-        });
-
-        document.getElementById('st-text-recorder-delete').addEventListener('click', () => {
-            if (!selectedNodeId) return;
-            const node = findNode(treeData, selectedNodeId);
-            if (!node) return;
-            
-            const msg = node.type === 'folder' 
-                ? `确定要删除文件夹 "${node.name}" 以及它里面的所有内容吗？`
-                : `确定要删除文本 "${node.name}" 吗？`;
-                
-            if (confirm(msg)) {
-                deleteNodeFromTree(treeData, selectedNodeId);
-                saveSettings();
-                selectedNodeId = null;
-                selectNode(null);
             }
         });
 

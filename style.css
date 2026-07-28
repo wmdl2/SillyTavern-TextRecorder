@@ -262,7 +262,10 @@
 
 /* Resizer X */
 .st-text-recorder-resizer-x {
-    width: 4px;
+    width: 8px;
+    margin-left: -4px;
+    margin-right: -4px;
+    z-index: 10;
     cursor: col-resize;
     background: transparent;
     transition: background 0.2s;

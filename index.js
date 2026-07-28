@@ -342,23 +342,29 @@ async function init() {
         const injectButton = () => {
             if (document.getElementById('st-text-recorder-toggle-btn')) return; // Already injected
 
-            // Attempt 1: The standard #extensions_menu (if it exists)
-            const wandMenu = document.getElementById('extensions_menu');
+            // Attempt 1: The standard #extensionsMenu (camelCase in 1.18+)
+            const wandMenu = document.getElementById('extensionsMenu') || document.getElementById('extensions_menu');
             if (wandMenu) {
                 const btn = document.createElement('div');
-                btn.className = 'list-group-item flex-container flexGapSm interactable';
+                btn.className = 'list-group-item flex-container flexGap5 interactable';
                 btn.id = 'st-text-recorder-toggle-btn';
-                btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录器</div>`;
+                btn.setAttribute('role', 'listitem');
+                btn.setAttribute('tabindex', '0');
+                btn.innerHTML = `<div class="fa-fw fa-solid fa-book extensionsMenuExtensionButton"></div><span>文本记录器</span>`;
                 wandMenu.appendChild(btn);
 
                 btn.addEventListener('click', togglePopup);
                 updateToggleButtonVisibility();
-                console.log('[Text Recorder] Injected into #extensions_menu');
+                console.log('[Text Recorder] Injected into #extensionsMenu');
                 return;
             }
         };
 
         const togglePopup = () => {
+            if (!isEnabled) {
+                if (window.toastr) window.toastr.warning('文本记录器目前处于停用状态，请在插件设置中开启。');
+                return;
+            }
             const container = document.getElementById('st-text-recorder-container');
             container.style.display = container.style.display === 'none' ? 'flex' : 'none';
             if (container.style.display === 'flex') {
@@ -377,13 +383,15 @@ async function init() {
             if (wandBtn) {
                 setTimeout(() => {
                     // Try to find the opened popup list
-                    const openPopups = document.querySelectorAll('.popup, .list-group');
+                    const openPopups = document.querySelectorAll('.popup, .list-group, #slash_commands_popup, #extensionsMenu, #extensions_menu_dropdown');
                     for (const popup of openPopups) {
                         if (popup.style.display !== 'none' && !popup.querySelector('#st-text-recorder-toggle-btn')) {
                             const btn = document.createElement('div');
-                            btn.className = 'list-group-item flex-container flexGapSm interactable';
+                            btn.className = 'list-group-item flex-container flexGap5 interactable';
                             btn.id = 'st-text-recorder-toggle-btn';
-                            btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录器</div>`;
+                            btn.setAttribute('role', 'listitem');
+                            btn.setAttribute('tabindex', '0');
+                            btn.innerHTML = `<div class="fa-fw fa-solid fa-book extensionsMenuExtensionButton"></div><span>文本记录器</span>`;
                             btn.addEventListener('click', togglePopup);
                             popup.appendChild(btn);
                             updateToggleButtonVisibility();
@@ -393,6 +401,23 @@ async function init() {
                 }, 100);
             }
         });
+
+        // 2.5 ADD SLASH COMMAND (Official API)
+        const context = SillyTavern.getContext();
+        if (context.registerSlashCommand) {
+            context.registerSlashCommand(
+                'recorder',
+                () => {
+                    togglePopup();
+                    return '';
+                },
+                [],
+                '打开或关闭文本记录器悬浮窗 (Toggle Text Recorder)',
+                true,
+                true
+            );
+            console.log('[Text Recorder] Slash command /recorder registered.');
+        }
 
         // 3. Setup Floating Window UI Events
         const container = document.getElementById('st-text-recorder-container');

@@ -1,35 +1,40 @@
-# SillyTavern Simple Text Recorder (简单文本记录器)
+# 简单文本记录器 (SillyTavern Text Recorder)
 
-A lightweight UI extension for SillyTavern that provides a floating text recorder, ideal for saving API keys, lore, character ideas, and temporary notes directly within the UI.
+这是一个专为 SillyTavern 设计的轻量级 UI 插件。它在你的酒馆内提供了一个悬浮的“文本记录本”，非常适合用来随时保存 API 密钥、角色灵感、跑团设定以及临时笔记。
 
-## Features
+## 核心功能
 
-- 🗂️ **Nested Categories**: Create a tree structure of folders and files to keep your notes organized.
-- 🪟 **Floating Interface**: A draggable and resizable floating window that does not block you from interacting with the main chat UI.
-- 📝 **Editor Utilities**: Quick action buttons for Copy, Paste, Clear, and Save.
-- 🔒 **Safe Editing**: Manual save mechanism to prevent accidental overwrites of your important notes.
+- 🗂️ **嵌套分类**：像电脑文件夹一样，支持创建无限层级的文件夹和文本，让你的笔记井井有条。
+- 🪟 **悬浮窗设计**：一个可自由拖拽、缩放的悬浮窗口，完全不会阻挡你和角色的正常聊天，支持边看边复制。
+- 📝 **快捷操作**：顶部工具栏提供一键复制、粘贴、清空和保存功能。
+- 🔒 **防误触机制**：采用“手动保存”机制，只有点击保存按钮后才会写入数据，有效防止手滑误删重要文本。
+- ⚙️ **随时开关**：在插件管理面板中提供主开关，随时启用或彻底关闭该功能。
 
-## Installation
+## 如何安装？
 
-1. Copy the URL of this GitHub repository.
-2. Open SillyTavern.
-3. Go to the **Extensions** menu (the blocks/cube icon at the top).
-4. Click on **Install Extension** and paste the GitHub repository URL.
-5. Click **Install**.
-6. Refresh your SillyTavern page.
+1. 复制本 GitHub 仓库的网址。
+2. 打开你的 SillyTavern。
+3. 点击顶部的 **扩展（Extensions，积木图标）** 菜单。
+4. 点击 **Install Extension (安装扩展)** 按钮，将刚才复制的网址粘贴进去。
+5. 点击 **Install (安装)**。
+6. 刷新你的 SillyTavern 网页即可。
 
-## Usage
+## 如何使用？
 
-1. Open the Extensions menu and click on the **Text Recorder** (book icon) button.
-2. Use the **Folder+** and **File+** buttons to create your first category or note.
-3. Right-click on any folder to quickly add files inside it.
-4. Select a file to view and edit its content.
-5. Click the **Save (Disk icon)** button to persist your changes.
+1. 在 SillyTavern 左下角的 **魔法棒（快速操作菜单）** 里，找到并点击 **文本记录本 (Text Recorder)**。
+2. 点击左侧工具栏的 **新建文件夹** 或 **新建文本** 图标来开始你的第一条记录。
+3. 右键点击任何一个文件夹，可以快速在它内部添加子文件或子文件夹。
+4. 选中一个文本后，就可以在右侧开始编辑。
+5. 编辑完成后，**一定要点击顶部的“保存（磁盘图标）”按钮**，否则刷新后数据会丢失。
 
-## Data Storage
+### 如何停用插件？
+如果你暂时不想使用，可以点击顶部的扩展（积木图标）菜单，找到“文本记录器设置”，取消勾选“启用文本记录器”即可。
 
-All data is stored locally inside your SillyTavern installation under `data/default-user/extension_settings.json`.
+## 数据存储在哪？
 
-## License
+你所有的记录数据都安全地存储在你本地的 SillyTavern 文件夹内，具体路径为：
+`data/default-user/extension_settings.json`
 
-This project is licensed under the MIT License.
+## 开源协议
+
+本项目采用 MIT 协议开源。

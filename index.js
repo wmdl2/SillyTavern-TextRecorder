@@ -1,18 +1,21 @@
-import { extension_settings, getContext } from '../../../extensions.js';
+import { extension_settings } from '../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../script.js';
 
 // Global variables for this extension
 const EXTENSION_NAME = 'st-text-recorder';
 let treeData = [];
 let selectedNodeId = null;
+let isEnabled = true;
 
 // Ensure settings exist
 if (!extension_settings[EXTENSION_NAME]) {
     extension_settings[EXTENSION_NAME] = {
-        tree: []
+        tree: [],
+        enabled: true
     };
 }
 treeData = extension_settings[EXTENSION_NAME].tree || [];
+isEnabled = extension_settings[EXTENSION_NAME].enabled !== false; // default true
 
 // Helper to generate unique IDs
 function generateId() {
@@ -22,12 +25,14 @@ function generateId() {
 // Helper to save settings
 function saveSettings() {
     extension_settings[EXTENSION_NAME].tree = treeData;
+    extension_settings[EXTENSION_NAME].enabled = isEnabled;
     saveSettingsDebounced();
 }
 
 // Tree Data Operations
 function addNode(parentId, type) {
-    const name = prompt(`Enter name for new ${type}:`, `New ${type}`);
+    const typeName = type === 'folder' ? '文件夹' : '文本';
+    const name = prompt(`请输入新${typeName}的名称:`, `新建${typeName}`);
     if (!name) return;
 
     const newNode = {
@@ -87,7 +92,7 @@ function renderTree() {
             
             const labelDiv = document.createElement('div');
             labelDiv.className = 'st-tree-item-label';
-            if (node.id === selectedNodeId) labelDiv.parentElement.classList.add('selected');
+            if (node.id === selectedNodeId) labelDiv.classList.add('selected');
             
             const icon = document.createElement('i');
             icon.className = node.type === 'folder' ? 'fa-solid fa-folder st-tree-item-icon' : 'fa-solid fa-file-lines st-tree-item-icon';
@@ -104,7 +109,6 @@ function renderTree() {
             labelDiv.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (node.type === 'folder') {
-                    // toggle folder
                     if (childrenContainer) {
                         childrenContainer.classList.toggle('collapsed');
                         icon.className = childrenContainer.classList.contains('collapsed') 
@@ -123,11 +127,11 @@ function renderTree() {
                 e.stopPropagation();
                 selectNode(node.id);
                 if (node.type === 'folder') {
-                    const action = confirm(`Add new file in [${node.name}]?\nOK = File, Cancel = Folder`);
+                    const action = confirm(`确定要在 [${node.name}] 中新建文本吗？\n点【确定】新建文本，点【取消】可选择新建文件夹。`);
                     if (action) {
                         addNode(node.id, 'file');
                     } else {
-                        const addFolder = confirm('Add new folder instead?');
+                        const addFolder = confirm(`要在 [${node.name}] 中新建文件夹吗？`);
                         if (addFolder) addNode(node.id, 'folder');
                     }
                 }
@@ -149,7 +153,6 @@ function renderTree() {
 }
 
 function selectNode(id) {
-    // Save current before switching if it's a file? We are using manual save.
     selectedNodeId = id;
     renderTree();
     
@@ -166,15 +169,14 @@ function selectNode(id) {
             textarea.value = node.content || '';
             titleSpan.textContent = node.name;
         } else {
-            // It's a folder, show empty state or just info
             editorArea.style.display = 'none';
             emptyState.style.display = 'flex';
-            emptyState.innerHTML = `<span>Folder: ${node.name} <br> (Right click folder in tree to add items inside)</span>`;
+            emptyState.innerHTML = `<span>📂 文件夹：${node.name} <br> <small>(在左侧右键点击该文件夹可添加子项)</small></span>`;
         }
     } else {
         editorArea.style.display = 'none';
         emptyState.style.display = 'flex';
-        emptyState.innerHTML = `<span>Select or create a text file to start writing...</span>`;
+        emptyState.innerHTML = `<span>请在左侧选择或新建一个文本以开始编辑...</span>`;
     }
 }
 
@@ -268,60 +270,100 @@ function makeSidebarResizable(sidebar, handle) {
     });
 }
 
-// Initialization
+// Core Button Injection
+function updateToggleButtonVisibility() {
+    const toggleBtn = document.getElementById('st-text-recorder-toggle-btn');
+    if (toggleBtn) {
+        toggleBtn.style.display = isEnabled ? 'flex' : 'none';
+    }
+    const container = document.getElementById('st-text-recorder-container');
+    if (container && !isEnabled) {
+        container.style.display = 'none';
+    }
+}
+
 async function init() {
-    // 1. Inject HTML
+    // 1. Fetch HTML template
     const htmlResponse = await fetch('/scripts/extensions/third-party/一个简单的记录文字小工具/index.html');
     const htmlText = await htmlResponse.text();
-    document.body.insertAdjacentHTML('beforeend', htmlText);
-
-    // 2. Add Top Bar Button
-    const topBar = document.getElementById('extensions_menu') || document.getElementById('rm_button_group_chats') || document.body;
-    const btnHtml = `<div id="st-text-recorder-toggle-btn" class="menu_button" title="Text Recorder">
-                        <i class="fa-solid fa-book"></i>
-                     </div>`;
     
-    // Fallback to extensions menu or top bar
-    const extensionMenu = document.getElementById('extensions_menu');
-    if (extensionMenu) {
-        const item = document.createElement('div');
-        item.className = 'list-group-item flex-container flexGapSm interactable';
-        item.id = 'st-text-recorder-toggle-btn';
-        item.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> Text Recorder</div>`;
-        extensionMenu.appendChild(item);
-    } else {
-        document.body.insertAdjacentHTML('beforeend', `<div id="st-text-recorder-toggle-btn" style="position:fixed;top:10px;right:150px;z-index:9999;background:#333;color:white;padding:5px;cursor:pointer;border-radius:4px;" title="Text Recorder"><i class="fa-solid fa-book"></i></div>`);
+    // Parse HTML to separate settings block from main window
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, 'text/html');
+    const mainWindowHtml = doc.getElementById('st-text-recorder-container').outerHTML;
+    const settingsPanelHtml = doc.getElementById('st-text-recorder-settings-panel').outerHTML;
+
+    // Insert main window to body
+    document.body.insertAdjacentHTML('beforeend', mainWindowHtml);
+    
+    // Insert settings panel to #extensions_settings
+    const extensionSettingsPanel = document.getElementById('extensions_settings');
+    if (extensionSettingsPanel) {
+        extensionSettingsPanel.insertAdjacentHTML('beforeend', settingsPanelHtml);
     }
 
-    // 3. Setup Elements
+    // Settings Toggle Logic
+    const enableCheckbox = document.getElementById('st-text-recorder-enable-checkbox');
+    if (enableCheckbox) {
+        enableCheckbox.checked = isEnabled;
+        enableCheckbox.addEventListener('change', (e) => {
+            isEnabled = e.target.checked;
+            saveSettings();
+            updateToggleButtonVisibility();
+        });
+    }
+
+    // 2. Inject Toggle Button into Magic Wand Menu (#extensions_menu)
+    // ST might recreate the menu dynamically, so we wait for it or inject gracefully
+    const injectIntoMagicWand = () => {
+        const wandMenu = document.getElementById('extensions_menu');
+        if (wandMenu && !document.getElementById('st-text-recorder-toggle-btn')) {
+            const btn = document.createElement('div');
+            btn.className = 'list-group-item flex-container flexGapSm interactable';
+            btn.id = 'st-text-recorder-toggle-btn';
+            btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录本</div>`;
+            wandMenu.appendChild(btn);
+
+            btn.addEventListener('click', () => {
+                const container = document.getElementById('st-text-recorder-container');
+                container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+                if (container.style.display === 'flex') {
+                    renderTree();
+                }
+            });
+            updateToggleButtonVisibility();
+        }
+    };
+    
+    // Attempt to inject immediately, or setup an observer/timeout if it opens later
+    injectIntoMagicWand();
+    
+    // Some themes build #extensions_menu later or when wand is clicked
+    const wandButton = document.getElementById('send_textarea_wand') || document.querySelector('.fa-wand-magic-sparkles')?.closest('.menu_button');
+    if (wandButton) {
+        wandButton.addEventListener('click', () => {
+            setTimeout(injectIntoMagicWand, 100);
+        });
+    }
+
+    // 3. Setup Floating Window UI Events
     const container = document.getElementById('st-text-recorder-container');
-    const toggleBtn = document.getElementById('st-text-recorder-toggle-btn');
     const closeBtn = document.getElementById('st-text-recorder-close');
     const header = document.getElementById('st-text-recorder-header');
     const resizeHandle = document.getElementById('st-text-recorder-resize-handle');
     const sidebar = document.querySelector('.st-text-recorder-sidebar');
     const sidebarResizer = document.getElementById('st-text-recorder-resizer-x');
-
-    // UI Toggles
-    toggleBtn.addEventListener('click', () => {
-        container.style.display = container.style.display === 'none' ? 'flex' : 'none';
-        if (container.style.display === 'flex') {
-            renderTree();
-        }
-    });
     
     closeBtn.addEventListener('click', () => {
         container.style.display = 'none';
     });
 
-    // Make Draggable and Resizable
     makeDraggable(container, header);
     makeResizable(container, resizeHandle);
     makeSidebarResizable(sidebar, sidebarResizer);
 
-    // Sidebar Toolbar Actions
+    // Sidebar Add Buttons
     document.getElementById('st-text-recorder-add-folder').addEventListener('click', () => {
-        // Add to root if nothing or file selected, else add to folder
         let targetId = null;
         if (selectedNodeId) {
             const node = findNode(treeData, selectedNodeId);
@@ -339,13 +381,13 @@ async function init() {
         addNode(targetId, 'file');
     });
 
-    // Editor Toolbar Actions
+    // Editor Actions
     const textarea = document.getElementById('st-text-recorder-textarea');
     
     document.getElementById('st-text-recorder-copy').addEventListener('click', async () => {
         try {
             await navigator.clipboard.writeText(textarea.value);
-            toastr?.success('Copied to clipboard');
+            toastr?.success('文本已复制到剪贴板');
         } catch (err) {
             console.error('Failed to copy', err);
         }
@@ -360,12 +402,12 @@ async function init() {
             textarea.selectionStart = textarea.selectionEnd = start + text.length;
         } catch (err) {
             console.error('Failed to paste', err);
-            toastr?.error('Could not read clipboard');
+            toastr?.error('无法读取剪贴板，请检查浏览器权限');
         }
     });
 
     document.getElementById('st-text-recorder-clear').addEventListener('click', () => {
-        if (confirm('Are you sure you want to clear the text? (You must click save to apply)')) {
+        if (confirm('确定要清空文本吗？（清空后必须点击保存才会生效）')) {
             textarea.value = '';
         }
     });
@@ -376,7 +418,7 @@ async function init() {
             if (node && node.type === 'file') {
                 node.content = textarea.value;
                 saveSettings();
-                toastr?.success('File saved');
+                toastr?.success('修改已保存');
             }
         }
     });
@@ -386,7 +428,11 @@ async function init() {
         const node = findNode(treeData, selectedNodeId);
         if (!node) return;
         
-        if (confirm(`Are you sure you want to delete ${node.type === 'folder' ? 'folder and ALL its contents' : 'file'} "${node.name}"?`)) {
+        const msg = node.type === 'folder' 
+            ? `确定要删除文件夹 "${node.name}" 以及它里面的所有内容吗？`
+            : `确定要删除文本 "${node.name}" 吗？`;
+            
+        if (confirm(msg)) {
             deleteNodeFromTree(treeData, selectedNodeId);
             saveSettings();
             selectedNodeId = null;

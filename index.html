@@ -1,11 +1,12 @@
+<!-- Floating Window UI -->
 <div id="st-text-recorder-container" class="st-text-recorder-container" style="display: none;">
     <div id="st-text-recorder-header" class="st-text-recorder-header">
         <div class="st-text-recorder-title">
             <i class="fa-solid fa-book"></i>
-            <span>Text Recorder</span>
+            <span>文本记录本</span>
         </div>
         <div class="st-text-recorder-controls">
-            <div id="st-text-recorder-close" class="st-text-recorder-close-btn" title="Close">
+            <div id="st-text-recorder-close" class="st-text-recorder-close-btn" title="关闭">
                 <i class="fa-solid fa-xmark"></i>
             </div>
         </div>
@@ -13,10 +14,10 @@
     <div class="st-text-recorder-body">
         <div class="st-text-recorder-sidebar">
             <div class="st-text-recorder-toolbar">
-                <div id="st-text-recorder-add-folder" class="st-text-recorder-icon-btn" title="New Category (Folder)">
+                <div id="st-text-recorder-add-folder" class="st-text-recorder-icon-btn" title="新建文件夹">
                     <i class="fa-solid fa-folder-plus"></i>
                 </div>
-                <div id="st-text-recorder-add-file" class="st-text-recorder-icon-btn" title="New Text (File)">
+                <div id="st-text-recorder-add-file" class="st-text-recorder-icon-btn" title="新建文本">
                     <i class="fa-solid fa-file-circle-plus"></i>
                 </div>
             </div>
@@ -31,30 +32,50 @@
                     <span id="st-text-recorder-current-title" class="st-text-recorder-current-title"></span>
                 </div>
                 <div class="st-text-recorder-toolbar-right">
-                    <div id="st-text-recorder-copy" class="st-text-recorder-icon-btn" title="Copy">
+                    <div id="st-text-recorder-copy" class="st-text-recorder-icon-btn" title="复制文本">
                         <i class="fa-solid fa-copy"></i>
                     </div>
-                    <div id="st-text-recorder-paste" class="st-text-recorder-icon-btn" title="Paste">
+                    <div id="st-text-recorder-paste" class="st-text-recorder-icon-btn" title="粘贴文本">
                         <i class="fa-solid fa-paste"></i>
                     </div>
-                    <div id="st-text-recorder-clear" class="st-text-recorder-icon-btn" title="Clear">
+                    <div id="st-text-recorder-clear" class="st-text-recorder-icon-btn" title="清空内容">
                         <i class="fa-solid fa-eraser"></i>
                     </div>
-                    <div id="st-text-recorder-save" class="st-text-recorder-icon-btn st-text-recorder-save-btn" title="Save">
+                    <div id="st-text-recorder-save" class="st-text-recorder-icon-btn st-text-recorder-save-btn" title="保存修改">
                         <i class="fa-solid fa-floppy-disk"></i>
                     </div>
-                    <div id="st-text-recorder-delete" class="st-text-recorder-icon-btn st-text-recorder-delete-btn" title="Delete">
+                    <div id="st-text-recorder-delete" class="st-text-recorder-icon-btn st-text-recorder-delete-btn" title="删除该文本/文件夹">
                         <i class="fa-solid fa-trash"></i>
                     </div>
                 </div>
             </div>
-            <textarea id="st-text-recorder-textarea" class="st-text-recorder-textarea text_pole" placeholder="Type here... Remember to click Save!"></textarea>
+            <textarea id="st-text-recorder-textarea" class="st-text-recorder-textarea text_pole" placeholder="在这里输入内容... 修改后请务必点击上方的【保存】按钮！"></textarea>
         </div>
         <div id="st-text-recorder-empty-state" class="st-text-recorder-empty-state">
-            <span>Select or create a text file to start writing...</span>
+            <span>请在左侧选择或新建一个文本以开始编辑...</span>
         </div>
     </div>
     <div id="st-text-recorder-resize-handle" class="st-text-recorder-resize-handle">
         <i class="fa-solid fa-caret-down" style="transform: rotate(-45deg);"></i>
+    </div>
+</div>
+
+<!-- Settings Panel UI (Injected into #extensions_settings) -->
+<div id="st-text-recorder-settings-panel" class="st-text-recorder-settings-panel">
+    <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
+            <b>文本记录器设置 (Text Recorder)</b>
+            <div class="inline-drawer-icon fa-solid fa-chevron-down down"></div>
+        </div>
+        <div class="inline-drawer-content">
+            <div class="flex-container alignitemscenter flexGapSm" style="margin-bottom: 10px;">
+                <label class="checkbox_label" for="st-text-recorder-enable-checkbox">
+                    <input id="st-text-recorder-enable-checkbox" type="checkbox">
+                    启用文本记录器
+                </label>
+                <small class="hint">(关闭后，左下角魔法棒菜单中的按钮将被隐藏)</small>
+            </div>
+            <hr class="sysHR">
+        </div>
     </div>
 </div>

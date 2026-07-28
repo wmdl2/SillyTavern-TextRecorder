@@ -1,32 +1,38 @@
-import { extension_settings } from '../../../extensions.js';
-import { saveSettingsDebounced } from '../../../../script.js';
-
 // Global variables for this extension
 const EXTENSION_NAME = 'st-text-recorder';
 let treeData = [];
 let selectedNodeId = null;
 let isEnabled = true;
 
-// Ensure settings exist
-if (!extension_settings[EXTENSION_NAME]) {
-    extension_settings[EXTENSION_NAME] = {
-        tree: [],
-        enabled: true
-    };
+// Helper to get extension context safely in 1.18.0+
+function getExtensionSettings() {
+    const context = SillyTavern?.getContext?.();
+    return context?.extension_settings || window.extension_settings || {};
 }
-treeData = extension_settings[EXTENSION_NAME].tree || [];
-isEnabled = extension_settings[EXTENSION_NAME].enabled !== false; // default true
 
-// Helper to generate unique IDs
-function generateId() {
-    return Math.random().toString(36).substr(2, 9);
+function getSaveSettingsDebounced() {
+    const context = SillyTavern?.getContext?.();
+    return context?.saveSettingsDebounced || window.saveSettingsDebounced || (() => {});
 }
 
 // Helper to save settings
 function saveSettings() {
-    extension_settings[EXTENSION_NAME].tree = treeData;
-    extension_settings[EXTENSION_NAME].enabled = isEnabled;
-    saveSettingsDebounced();
+    const settings = getExtensionSettings();
+    if (!settings[EXTENSION_NAME]) {
+        settings[EXTENSION_NAME] = { tree: [], enabled: true };
+    }
+    settings[EXTENSION_NAME].tree = treeData;
+    settings[EXTENSION_NAME].enabled = isEnabled;
+    
+    const saveFunc = getSaveSettingsDebounced();
+    if (typeof saveFunc === 'function') {
+        saveFunc();
+    }
+}
+
+// Helper to generate unique IDs
+function generateId() {
+    return Math.random().toString(36).substr(2, 9);
 }
 
 // Tree Data Operations
@@ -121,7 +127,6 @@ function renderTree() {
                 }
             });
 
-            // Context menu simulation (right click) for adding inside folders
             labelDiv.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -283,164 +288,188 @@ function updateToggleButtonVisibility() {
 }
 
 async function init() {
-    // 1. Fetch HTML template
-    const htmlResponse = await fetch('/scripts/extensions/third-party/一个简单的记录文字小工具/index.html');
-    const htmlText = await htmlResponse.text();
-    
-    // Parse HTML to separate settings block from main window
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlText, 'text/html');
-    const mainWindowHtml = doc.getElementById('st-text-recorder-container').outerHTML;
-    const settingsPanelHtml = doc.getElementById('st-text-recorder-settings-panel').outerHTML;
-
-    // Insert main window to body
-    document.body.insertAdjacentHTML('beforeend', mainWindowHtml);
-    
-    // Insert settings panel to #extensions_settings
-    const extensionSettingsPanel = document.getElementById('extensions_settings');
-    if (extensionSettingsPanel) {
-        extensionSettingsPanel.insertAdjacentHTML('beforeend', settingsPanelHtml);
-    }
-
-    // Settings Toggle Logic
-    const enableCheckbox = document.getElementById('st-text-recorder-enable-checkbox');
-    if (enableCheckbox) {
-        enableCheckbox.checked = isEnabled;
-        enableCheckbox.addEventListener('change', (e) => {
-            isEnabled = e.target.checked;
-            saveSettings();
-            updateToggleButtonVisibility();
-        });
-    }
-
-    // 2. Inject Toggle Button into Magic Wand Menu (#extensions_menu)
-    // ST might recreate the menu dynamically, so we wait for it or inject gracefully
-    const injectIntoMagicWand = () => {
-        const wandMenu = document.getElementById('extensions_menu');
-        if (wandMenu && !document.getElementById('st-text-recorder-toggle-btn')) {
-            const btn = document.createElement('div');
-            btn.className = 'list-group-item flex-container flexGapSm interactable';
-            btn.id = 'st-text-recorder-toggle-btn';
-            btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录本</div>`;
-            wandMenu.appendChild(btn);
-
-            btn.addEventListener('click', () => {
-                const container = document.getElementById('st-text-recorder-container');
-                container.style.display = container.style.display === 'none' ? 'flex' : 'none';
-                if (container.style.display === 'flex') {
-                    renderTree();
-                }
-            });
-            updateToggleButtonVisibility();
-        }
-    };
-    
-    // Attempt to inject immediately, or setup an observer/timeout if it opens later
-    injectIntoMagicWand();
-    
-    // Some themes build #extensions_menu later or when wand is clicked
-    const wandButton = document.getElementById('send_textarea_wand') || document.querySelector('.fa-wand-magic-sparkles')?.closest('.menu_button');
-    if (wandButton) {
-        wandButton.addEventListener('click', () => {
-            setTimeout(injectIntoMagicWand, 100);
-        });
-    }
-
-    // 3. Setup Floating Window UI Events
-    const container = document.getElementById('st-text-recorder-container');
-    const closeBtn = document.getElementById('st-text-recorder-close');
-    const header = document.getElementById('st-text-recorder-header');
-    const resizeHandle = document.getElementById('st-text-recorder-resize-handle');
-    const sidebar = document.querySelector('.st-text-recorder-sidebar');
-    const sidebarResizer = document.getElementById('st-text-recorder-resizer-x');
-    
-    closeBtn.addEventListener('click', () => {
-        container.style.display = 'none';
-    });
-
-    makeDraggable(container, header);
-    makeResizable(container, resizeHandle);
-    makeSidebarResizable(sidebar, sidebarResizer);
-
-    // Sidebar Add Buttons
-    document.getElementById('st-text-recorder-add-folder').addEventListener('click', () => {
-        let targetId = null;
-        if (selectedNodeId) {
-            const node = findNode(treeData, selectedNodeId);
-            if (node && node.type === 'folder') targetId = selectedNodeId;
-        }
-        addNode(targetId, 'folder');
-    });
-
-    document.getElementById('st-text-recorder-add-file').addEventListener('click', () => {
-        let targetId = null;
-        if (selectedNodeId) {
-            const node = findNode(treeData, selectedNodeId);
-            if (node && node.type === 'folder') targetId = selectedNodeId;
-        }
-        addNode(targetId, 'file');
-    });
-
-    // Editor Actions
-    const textarea = document.getElementById('st-text-recorder-textarea');
-    
-    document.getElementById('st-text-recorder-copy').addEventListener('click', async () => {
-        try {
-            await navigator.clipboard.writeText(textarea.value);
-            toastr?.success('文本已复制到剪贴板');
-        } catch (err) {
-            console.error('Failed to copy', err);
-        }
-    });
-
-    document.getElementById('st-text-recorder-paste').addEventListener('click', async () => {
-        try {
-            const text = await navigator.clipboard.readText();
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + text.length;
-        } catch (err) {
-            console.error('Failed to paste', err);
-            toastr?.error('无法读取剪贴板，请检查浏览器权限');
-        }
-    });
-
-    document.getElementById('st-text-recorder-clear').addEventListener('click', () => {
-        if (confirm('确定要清空文本吗？（清空后必须点击保存才会生效）')) {
-            textarea.value = '';
-        }
-    });
-
-    document.getElementById('st-text-recorder-save').addEventListener('click', () => {
-        if (selectedNodeId) {
-            const node = findNode(treeData, selectedNodeId);
-            if (node && node.type === 'file') {
-                node.content = textarea.value;
-                saveSettings();
-                toastr?.success('修改已保存');
-            }
-        }
-    });
-
-    document.getElementById('st-text-recorder-delete').addEventListener('click', () => {
-        if (!selectedNodeId) return;
-        const node = findNode(treeData, selectedNodeId);
-        if (!node) return;
+    try {
+        console.log('[Text Recorder] Initializing...');
         
-        const msg = node.type === 'folder' 
-            ? `确定要删除文件夹 "${node.name}" 以及它里面的所有内容吗？`
-            : `确定要删除文本 "${node.name}" 吗？`;
-            
-        if (confirm(msg)) {
-            deleteNodeFromTree(treeData, selectedNodeId);
-            saveSettings();
-            selectedNodeId = null;
-            selectNode(null);
+        // Ensure settings exist and load data safely
+        const settings = getExtensionSettings();
+        if (!settings[EXTENSION_NAME]) {
+            settings[EXTENSION_NAME] = { tree: [], enabled: true };
         }
-    });
+        treeData = settings[EXTENSION_NAME].tree || [];
+        isEnabled = settings[EXTENSION_NAME].enabled !== false;
+        
+        // 1. Fetch HTML template dynamically
+        // Use import.meta.url to safely construct the path to index.html to avoid 404s
+        const myPath = import.meta.url;
+        const htmlUrl = new URL('index.html', myPath).href;
+        
+        const htmlResponse = await fetch(htmlUrl);
+        if (!htmlResponse.ok) {
+            throw new Error(`Failed to load index.html from ${htmlUrl}`);
+        }
+        const htmlText = await htmlResponse.text();
+        
+        // Parse HTML to separate settings block from main window
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlText, 'text/html');
+        const mainWindowHtml = doc.getElementById('st-text-recorder-container').outerHTML;
+        const settingsPanelHtml = doc.getElementById('st-text-recorder-settings-panel').outerHTML;
 
-    renderTree();
+        // Insert main window to body
+        if (!document.getElementById('st-text-recorder-container')) {
+            document.body.insertAdjacentHTML('beforeend', mainWindowHtml);
+        }
+        
+        // Insert settings panel to #extensions_settings
+        const extensionSettingsPanel = document.getElementById('extensions_settings');
+        if (extensionSettingsPanel && !document.getElementById('st-text-recorder-settings-panel')) {
+            extensionSettingsPanel.insertAdjacentHTML('beforeend', settingsPanelHtml);
+        }
+
+        // Settings Toggle Logic
+        const enableCheckbox = document.getElementById('st-text-recorder-enable-checkbox');
+        if (enableCheckbox) {
+            enableCheckbox.checked = isEnabled;
+            enableCheckbox.addEventListener('change', (e) => {
+                isEnabled = e.target.checked;
+                saveSettings();
+                updateToggleButtonVisibility();
+            });
+        }
+
+        // 2. Inject Toggle Button into Magic Wand Menu (#extensions_menu)
+        const injectIntoMagicWand = () => {
+            const wandMenu = document.getElementById('extensions_menu');
+            if (wandMenu && !document.getElementById('st-text-recorder-toggle-btn')) {
+                const btn = document.createElement('div');
+                btn.className = 'list-group-item flex-container flexGapSm interactable';
+                btn.id = 'st-text-recorder-toggle-btn';
+                btn.innerHTML = `<div class="flex-container flexGapSm extensionsMenuLabel"><i class="fa-solid fa-book"></i> 文本记录本</div>`;
+                wandMenu.appendChild(btn);
+
+                btn.addEventListener('click', () => {
+                    const container = document.getElementById('st-text-recorder-container');
+                    container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+                    if (container.style.display === 'flex') {
+                        renderTree();
+                    }
+                });
+                updateToggleButtonVisibility();
+                console.log('[Text Recorder] Button successfully injected into wand menu.');
+            }
+        };
+        
+        // Try multiple times to inject into wand menu, as ST builds it asynchronously
+        injectIntoMagicWand();
+        setTimeout(injectIntoMagicWand, 1000);
+        setTimeout(injectIntoMagicWand, 3000);
+        
+        // Listen to wand click just in case
+        const wandButton = document.getElementById('send_textarea_wand') || document.querySelector('.fa-wand-magic-sparkles')?.closest('.menu_button');
+        if (wandButton) {
+            wandButton.addEventListener('click', () => {
+                setTimeout(injectIntoMagicWand, 100);
+            });
+        }
+
+        // 3. Setup Floating Window UI Events
+        const container = document.getElementById('st-text-recorder-container');
+        const closeBtn = document.getElementById('st-text-recorder-close');
+        const header = document.getElementById('st-text-recorder-header');
+        const resizeHandle = document.getElementById('st-text-recorder-resize-handle');
+        const sidebar = document.querySelector('.st-text-recorder-sidebar');
+        const sidebarResizer = document.getElementById('st-text-recorder-resizer-x');
+        
+        closeBtn.addEventListener('click', () => {
+            container.style.display = 'none';
+        });
+
+        makeDraggable(container, header);
+        makeResizable(container, resizeHandle);
+        makeSidebarResizable(sidebar, sidebarResizer);
+
+        document.getElementById('st-text-recorder-add-folder').addEventListener('click', () => {
+            let targetId = null;
+            if (selectedNodeId) {
+                const node = findNode(treeData, selectedNodeId);
+                if (node && node.type === 'folder') targetId = selectedNodeId;
+            }
+            addNode(targetId, 'folder');
+        });
+
+        document.getElementById('st-text-recorder-add-file').addEventListener('click', () => {
+            let targetId = null;
+            if (selectedNodeId) {
+                const node = findNode(treeData, selectedNodeId);
+                if (node && node.type === 'folder') targetId = selectedNodeId;
+            }
+            addNode(targetId, 'file');
+        });
+
+        const textarea = document.getElementById('st-text-recorder-textarea');
+        
+        document.getElementById('st-text-recorder-copy').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(textarea.value);
+                if (window.toastr) window.toastr.success('文本已复制到剪贴板');
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+        });
+
+        document.getElementById('st-text-recorder-paste').addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(end);
+                textarea.selectionStart = textarea.selectionEnd = start + text.length;
+            } catch (err) {
+                console.error('Failed to paste', err);
+                if (window.toastr) window.toastr.error('无法读取剪贴板，请检查浏览器权限');
+            }
+        });
+
+        document.getElementById('st-text-recorder-clear').addEventListener('click', () => {
+            if (confirm('确定要清空文本吗？（清空后必须点击保存才会生效）')) {
+                textarea.value = '';
+            }
+        });
+
+        document.getElementById('st-text-recorder-save').addEventListener('click', () => {
+            if (selectedNodeId) {
+                const node = findNode(treeData, selectedNodeId);
+                if (node && node.type === 'file') {
+                    node.content = textarea.value;
+                    saveSettings();
+                    if (window.toastr) window.toastr.success('修改已保存');
+                }
+            }
+        });
+
+        document.getElementById('st-text-recorder-delete').addEventListener('click', () => {
+            if (!selectedNodeId) return;
+            const node = findNode(treeData, selectedNodeId);
+            if (!node) return;
+            
+            const msg = node.type === 'folder' 
+                ? `确定要删除文件夹 "${node.name}" 以及它里面的所有内容吗？`
+                : `确定要删除文本 "${node.name}" 吗？`;
+                
+            if (confirm(msg)) {
+                deleteNodeFromTree(treeData, selectedNodeId);
+                saveSettings();
+                selectedNodeId = null;
+                selectNode(null);
+            }
+        });
+
+        renderTree();
+        console.log('[Text Recorder] Successfully initialized!');
+    } catch (err) {
+        console.error('[Text Recorder] Initialization failed:', err);
+    }
 }
 
 jQuery(async () => {

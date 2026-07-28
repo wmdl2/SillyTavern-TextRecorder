@@ -221,9 +221,17 @@
     background: rgba(128, 128, 128, 0.4);
     transform: scale(1.1);
 }
-.st-tree-add-file-btn { color: #4CAF50; }
-.st-tree-add-folder-btn { color: #2196F3; }
-.fa-trash.st-tree-action-btn { color: #f44336 !important; }
+
+/* Beautified Left-side Icons */
+.st-tree-item-icon.fa-folder, 
+.st-tree-item-icon.fa-folder-open {
+    color: #e1b12c; /* Yellow-orange for folders */
+    opacity: 0.9;
+}
+.st-tree-item-icon.fa-file-lines {
+    color: #00a8ff; /* Blue for files */
+    opacity: 0.9;
+}
 
 /* Inline Input */
 .st-tree-inline-input {

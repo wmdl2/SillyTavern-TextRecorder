@@ -1,9 +1,9 @@
 {
-    "display_name": "简单文本记录本",
+    "display_name": "文本记录器",
     "js": "index.js",
     "css": "style.css",
     "author": "Antigravity",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "auto_update": false,
     "minimum_client_version": "1.10.0"
 }

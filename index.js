@@ -493,6 +493,13 @@ async function init() {
     }
 }
 
-jQuery(async () => {
-    init();
+// 规范：监听 APP_READY 事件后再操作 DOM
+jQuery(() => {
+    const context = SillyTavern.getContext();
+    if (context && context.eventSource && context.event_types) {
+        context.eventSource.on(context.event_types.APP_READY, init);
+    } else {
+        // Fallback for older/unusual ST versions
+        setTimeout(init, 2000);
+    }
 });

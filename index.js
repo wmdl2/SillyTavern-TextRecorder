@@ -261,8 +261,10 @@ function renderTree() {
                 const primaryDiv = document.createElement('div');
                 primaryDiv.className = 'st-tree-primary-actions';
 
+                let addFileBtn, addFolderBtn;
+
                 if (node.type === 'folder') {
-                    const addFileBtn = document.createElement('i');
+                    addFileBtn = document.createElement('i');
                     addFileBtn.className = 'fa-solid fa-file-circle-plus st-tree-action-btn st-tree-add-file-btn';
                     addFileBtn.title = '新建文本';
                     addFileBtn.addEventListener('click', (e) => {
@@ -271,7 +273,7 @@ function renderTree() {
                     });
                     primaryDiv.appendChild(addFileBtn);
 
-                    const addFolderBtn = document.createElement('i');
+                    addFolderBtn = document.createElement('i');
                     addFolderBtn.className = 'fa-solid fa-folder-plus st-tree-action-btn st-tree-add-folder-btn';
                     addFolderBtn.title = '新建文件夹';
                     addFolderBtn.addEventListener('click', (e) => {
@@ -287,7 +289,9 @@ function renderTree() {
                 moreBtn.title = '更多操作 (重命名、删除、排序)';
                 moreBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    secondaryDiv.classList.toggle('show');
+                    const isShowing = secondaryDiv.classList.toggle('show');
+                    if (addFileBtn) addFileBtn.style.display = isShowing ? 'none' : '';
+                    if (addFolderBtn) addFolderBtn.style.display = isShowing ? 'none' : '';
                 });
                 primaryDiv.appendChild(moreBtn);
 

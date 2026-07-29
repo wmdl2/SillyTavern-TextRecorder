@@ -201,6 +201,9 @@ function renderTree() {
                 // Actions Container
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'st-tree-item-actions';
+                actionsDiv.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                });
 
                 // Secondary Actions (Hidden initially)
                 const secondaryDiv = document.createElement('div');

@@ -212,20 +212,25 @@
     padding-left: 5px;
     flex-shrink: 0;
 }
-/* Hide specific secondary buttons by default */
-.st-tree-item-actions .fa-arrow-up,
-.st-tree-item-actions .fa-arrow-down,
-.st-tree-item-actions .fa-pen {
-    display: none;
-}
-/* Show secondary buttons on hover (Desktop) or when selected (Mobile) */
-.st-tree-item-label:hover .st-tree-item-actions .fa-arrow-up,
-.st-tree-item-label:hover .st-tree-item-actions .fa-arrow-down,
-.st-tree-item-label:hover .st-tree-item-actions .fa-pen,
-.st-tree-item-label.selected .st-tree-item-actions .fa-arrow-up,
-.st-tree-item-label.selected .st-tree-item-actions .fa-arrow-down,
-.st-tree-item-label.selected .st-tree-item-actions .fa-pen {
+.st-tree-primary-actions, .st-tree-secondary-actions {
     display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.st-tree-secondary-actions {
+    display: none;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 2px 4px;
+    border-radius: 4px;
+    margin-right: 4px;
+}
+.st-tree-secondary-actions.show {
+    display: flex;
+    animation: fadeIn 0.15s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateX(5px); }
+    to { opacity: 1; transform: translateX(0); }
 }
 .st-tree-action-btn {
     font-size: 13px;

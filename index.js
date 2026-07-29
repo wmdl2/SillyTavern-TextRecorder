@@ -290,10 +290,18 @@ function renderTree() {
                             childrenContainer.className = node.isOpen ? 'st-tree-children' : 'st-tree-children collapsed';
                             icon.className = node.isOpen ? 'fa-solid fa-folder-open st-tree-item-icon' : 'fa-solid fa-folder st-tree-item-icon';
                         }
-                        selectNode(node.id);
+                        if (selectedNodeId === node.id) {
+                            selectNode(null);
+                        } else {
+                            selectNode(node.id);
+                        }
                         saveSettings();
                     } else {
-                        selectNode(node.id);
+                        if (selectedNodeId === node.id) {
+                            selectNode(null);
+                        } else {
+                            selectNode(node.id);
+                        }
                     }
                 });
 

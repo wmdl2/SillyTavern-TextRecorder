@@ -205,16 +205,26 @@
 
 /* Inline Actions */
 .st-tree-item-actions {
-    display: none;
+    display: flex;
     align-items: center;
     gap: 3px;
     margin-left: auto;
     padding-left: 5px;
     flex-shrink: 0;
 }
-/* Show actions on hover (Desktop) or when selected (Mobile) */
-.st-tree-item-label:hover .st-tree-item-actions,
-.st-tree-item-label.selected .st-tree-item-actions {
+/* Hide specific secondary buttons by default */
+.st-tree-item-actions .fa-arrow-up,
+.st-tree-item-actions .fa-arrow-down,
+.st-tree-item-actions .fa-pen {
+    display: none;
+}
+/* Show secondary buttons on hover (Desktop) or when selected (Mobile) */
+.st-tree-item-label:hover .st-tree-item-actions .fa-arrow-up,
+.st-tree-item-label:hover .st-tree-item-actions .fa-arrow-down,
+.st-tree-item-label:hover .st-tree-item-actions .fa-pen,
+.st-tree-item-label.selected .st-tree-item-actions .fa-arrow-up,
+.st-tree-item-label.selected .st-tree-item-actions .fa-arrow-down,
+.st-tree-item-label.selected .st-tree-item-actions .fa-pen {
     display: flex;
 }
 .st-tree-action-btn {

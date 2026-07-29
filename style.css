@@ -195,20 +195,27 @@
     color: var(--SmartThemeInteractableColor, #ddd);
 }
 .st-tree-item-text {
-    font-size: 13px;
+    flex: 1;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
+    min-width: 0;
+    margin-right: 5px;
 }
 
 /* Inline Actions */
 .st-tree-item-actions {
-    display: flex;
+    display: none;
     align-items: center;
     gap: 3px;
     margin-left: auto;
     padding-left: 5px;
+    flex-shrink: 0;
+}
+/* Show actions on hover (Desktop) or when selected (Mobile) */
+.st-tree-item-label:hover .st-tree-item-actions,
+.st-tree-item-label.selected .st-tree-item-actions {
+    display: flex;
 }
 .st-tree-action-btn {
     font-size: 13px;

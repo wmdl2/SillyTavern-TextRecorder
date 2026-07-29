@@ -204,13 +204,11 @@
 
 /* Inline Actions */
 .st-tree-item-actions {
-    display: none;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-}
-.st-tree-item-label:hover .st-tree-item-actions {
     display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+    padding-left: 5px;
 }
 .st-tree-action-btn {
     font-size: 13px;

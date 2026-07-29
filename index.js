@@ -62,6 +62,42 @@ function addNode(parentId, type) {
     renderTree();
 }
 
+function moveNode(id, direction) {
+    let parentArray = null;
+    let index = treeData.findIndex(n => n.id === id);
+    if (index !== -1) {
+        parentArray = treeData;
+    } else {
+        function findParentArray(nodes) {
+            for (let node of nodes) {
+                if (node.children) {
+                    let idx = node.children.findIndex(n => n.id === id);
+                    if (idx !== -1) return node.children;
+                    let found = findParentArray(node.children);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+        parentArray = findParentArray(treeData);
+        if (parentArray) {
+            index = parentArray.findIndex(n => n.id === id);
+        }
+    }
+
+    if (parentArray && index !== -1) {
+        if (direction === 'up' && index > 0) {
+            [parentArray[index - 1], parentArray[index]] = [parentArray[index], parentArray[index - 1]];
+            saveSettings();
+            renderTree();
+        } else if (direction === 'down' && index < parentArray.length - 1) {
+            [parentArray[index + 1], parentArray[index]] = [parentArray[index], parentArray[index + 1]];
+            saveSettings();
+            renderTree();
+        }
+    }
+}
+
 function findNode(nodes, id) {
     for (const node of nodes) {
         if (node.id === id) return node;
@@ -165,6 +201,24 @@ function renderTree() {
                 // Hover Actions
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'st-tree-item-actions';
+
+                const moveUpBtn = document.createElement('i');
+                moveUpBtn.className = 'fa-solid fa-arrow-up st-tree-action-btn';
+                moveUpBtn.title = '上移';
+                moveUpBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    moveNode(node.id, 'up');
+                });
+                actionsDiv.appendChild(moveUpBtn);
+
+                const moveDownBtn = document.createElement('i');
+                moveDownBtn.className = 'fa-solid fa-arrow-down st-tree-action-btn';
+                moveDownBtn.title = '下移';
+                moveDownBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    moveNode(node.id, 'down');
+                });
+                actionsDiv.appendChild(moveDownBtn);
 
                 if (node.type === 'folder') {
                     const addFileBtn = document.createElement('i');
@@ -301,41 +355,53 @@ function makeDraggable(container, header) {
     let startX, startY, initialX, initialY;
     let wasDragged = false;
 
-    container.addEventListener('mousedown', (e) => {
-        // If NOT minimized, only allow drag from header
+    const onStart = (e) => {
+        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        const target = e.target;
+        
         if (!container.classList.contains('minimized')) {
-            if (!e.target.closest('.st-text-recorder-header')) return;
-            if (e.target.closest('.st-text-recorder-controls')) return; // Ignore buttons in header
+            if (!target.closest('.st-text-recorder-header')) return;
+            if (target.closest('.st-text-recorder-controls')) return;
         }
         
         isDragging = true;
         wasDragged = false;
-        startX = e.clientX;
-        startY = e.clientY;
+        startX = clientX;
+        startY = clientY;
         const rect = container.getBoundingClientRect();
         initialX = rect.left;
         initialY = rect.top;
         document.body.style.userSelect = 'none';
-    });
+    };
 
-    document.addEventListener('mousemove', (e) => {
+    const onMove = (e) => {
         if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
             wasDragged = true;
         }
         container.style.left = `${initialX + dx}px`;
         container.style.top = `${initialY + dy}px`;
-        container.style.right = 'auto'; // clear right to use left/top
-    });
+        container.style.right = 'auto';
+    };
 
-    document.addEventListener('mouseup', () => {
+    const onEnd = () => {
         if (isDragging) {
             isDragging = false;
             document.body.style.userSelect = '';
         }
-    });
+    };
+
+    container.addEventListener('mousedown', onStart);
+    container.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
 
     // Expand when clicking the minimized icon, but ONLY if it wasn't a drag action
     container.addEventListener('click', (e) => {
@@ -354,58 +420,73 @@ function makeResizable(container, handle) {
     let isResizing = false;
     let startX, startY, startWidth, startHeight;
 
-    handle.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
+    const onStart = (e) => {
         isResizing = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        const rect = container.getBoundingClientRect();
-        startWidth = rect.width;
-        startHeight = rect.height;
+        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        startX = clientX;
+        startY = clientY;
+        startWidth = container.offsetWidth;
+        startHeight = container.offsetHeight;
         document.body.style.userSelect = 'none';
-    });
+        e.stopPropagation();
+    };
 
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing || container.classList.contains('minimized')) return;
-        const width = startWidth + (e.clientX - startX);
-        const height = startHeight + (e.clientY - startY);
-        container.style.width = `${Math.max(300, width)}px`;
-        container.style.height = `${Math.max(200, height)}px`;
-    });
+    const onMove = (e) => {
+        if (!isResizing) return;
+        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        container.style.width = `${Math.max(300, startWidth + (clientX - startX))}px`;
+        container.style.height = `${Math.max(200, startHeight + (clientY - startY))}px`;
+    };
 
-    document.addEventListener('mouseup', () => {
+    const onEnd = () => {
         if (isResizing) {
             isResizing = false;
             document.body.style.userSelect = '';
         }
-    });
+    };
+
+    handle.addEventListener('mousedown', onStart);
+    handle.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
 }
 
 function makeSidebarResizable(sidebar, handle) {
     let isResizing = false;
     let startX, startWidth;
 
-    handle.addEventListener('mousedown', (e) => {
-        e.stopPropagation();
+    const onStart = (e) => {
         isResizing = true;
-        startX = e.clientX;
-        startWidth = sidebar.getBoundingClientRect().width;
+        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        startX = clientX;
+        startWidth = sidebar.offsetWidth;
         document.body.style.userSelect = 'none';
-    });
+        e.stopPropagation();
+    };
 
-    document.addEventListener('mousemove', (e) => {
-        const container = document.getElementById('st-text-recorder-container');
-        if (!isResizing || (container && container.classList.contains('minimized'))) return;
-        const width = startWidth + (e.clientX - startX);
-        sidebar.style.width = `${Math.max(100, Math.min(width, 400))}px`;
-    });
+    const onMove = (e) => {
+        if (!isResizing) return;
+        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        sidebar.style.width = `${Math.max(100, Math.min(startWidth + (clientX - startX), 400))}px`;
+    };
 
-    document.addEventListener('mouseup', () => {
+    const onEnd = () => {
         if (isResizing) {
             isResizing = false;
             document.body.style.userSelect = '';
         }
-    });
+    };
+
+    handle.addEventListener('mousedown', onStart);
+    handle.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
 }
 
 // Core Button Injection

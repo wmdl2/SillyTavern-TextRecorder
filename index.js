@@ -16,6 +16,46 @@ function getSaveSettingsDebounced() {
     return context?.saveSettingsDebounced || window.saveSettingsDebounced || (() => {});
 }
 
+// Fallback for mobile browsers and HTTP LAN access, where the Clipboard API
+// is often unavailable because the page is not considered a secure context.
+function copyTextWithLegacyApi(text) {
+    const temporaryTextarea = document.createElement('textarea');
+    temporaryTextarea.value = text;
+    temporaryTextarea.setAttribute('readonly', '');
+    temporaryTextarea.setAttribute('aria-hidden', 'true');
+    Object.assign(temporaryTextarea.style, {
+        position: 'fixed',
+        top: '0',
+        left: '-9999px',
+        opacity: '0',
+        fontSize: '16px',
+    });
+
+    document.body.appendChild(temporaryTextarea);
+    temporaryTextarea.focus();
+    temporaryTextarea.select();
+    temporaryTextarea.setSelectionRange(0, temporaryTextarea.value.length);
+
+    try {
+        return document.execCommand('copy');
+    } finally {
+        temporaryTextarea.remove();
+    }
+}
+
+async function copyTextToClipboard(text) {
+    if (window.isSecureContext && navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            console.warn('Clipboard API failed, trying compatibility fallback', err);
+        }
+    }
+
+    return copyTextWithLegacyApi(text);
+}
+
 // Helper to save settings
 function saveSettings() {
     const settings = getExtensionSettings();
@@ -707,10 +747,12 @@ async function init() {
         
         document.getElementById('st-text-recorder-copy').addEventListener('click', async () => {
             try {
-                await navigator.clipboard.writeText(textarea.value);
+                const copied = await copyTextToClipboard(textarea.value);
+                if (!copied) throw new Error('The browser rejected the copy command');
                 if (window.toastr) window.toastr.success('文本已复制到剪贴板');
             } catch (err) {
                 console.error('Failed to copy', err);
+                if (window.toastr) window.toastr.error('复制失败，请长按文本手动复制');
             }
         });
 

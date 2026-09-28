@@ -16,34 +16,78 @@ function getSaveSettingsDebounced() {
     return context?.saveSettingsDebounced || window.saveSettingsDebounced || (() => {});
 }
 
-// Fallback for mobile browsers and HTTP LAN access, where the Clipboard API
-// is often unavailable because the page is not considered a secure context.
+// Robust fallback for mobile browsers and HTTP LAN access, where the Clipboard API
+// is unavailable because the page is not considered a secure context.
 function copyTextWithLegacyApi(text) {
+    // 1. Direct copy via the active on-screen textarea if it contains the text
+    const mainTextarea = document.getElementById('st-text-recorder-textarea');
+    if (mainTextarea && mainTextarea.value === text && document.body.contains(mainTextarea)) {
+        try {
+            const prevStart = mainTextarea.selectionStart;
+            const prevEnd = mainTextarea.selectionEnd;
+            mainTextarea.focus();
+            mainTextarea.select();
+            mainTextarea.setSelectionRange(0, text.length);
+            const successful = document.execCommand('copy');
+            mainTextarea.setSelectionRange(prevStart, prevEnd);
+            if (successful) return true;
+        } catch (e) {
+            console.warn('Direct textarea copy failed, trying temporary element', e);
+        }
+    }
+
+    // 2. Fallback using a temporary in-viewport element (compatible with iOS Safari & mobile Chrome)
     const temporaryTextarea = document.createElement('textarea');
     temporaryTextarea.value = text;
-    temporaryTextarea.setAttribute('readonly', '');
-    temporaryTextarea.setAttribute('aria-hidden', 'true');
+    // On iOS Safari, readonly prevents select() from selecting text,
+    // and off-screen elements (-9999px) are rejected by WebKit security checks.
     Object.assign(temporaryTextarea.style, {
         position: 'fixed',
         top: '0',
-        left: '-9999px',
-        opacity: '0',
-        fontSize: '16px',
+        left: '0',
+        width: '2em',
+        height: '2em',
+        padding: '0',
+        border: 'none',
+        outline: 'none',
+        boxShadow: 'none',
+        background: 'transparent',
+        opacity: '0.01',
+        pointerEvents: 'none',
+        zIndex: '-1'
     });
 
     document.body.appendChild(temporaryTextarea);
-    temporaryTextarea.focus();
-    temporaryTextarea.select();
-    temporaryTextarea.setSelectionRange(0, temporaryTextarea.value.length);
 
+    const isIOS = /ipad|iphone|ipod/i.test(navigator.userAgent);
+    if (isIOS) {
+        temporaryTextarea.contentEditable = true;
+        temporaryTextarea.readOnly = false;
+        const range = document.createRange();
+        range.selectNodeContents(temporaryTextarea);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        temporaryTextarea.setSelectionRange(0, 999999);
+    } else {
+        temporaryTextarea.focus();
+        temporaryTextarea.select();
+        temporaryTextarea.setSelectionRange(0, temporaryTextarea.value.length);
+    }
+
+    let copied = false;
     try {
-        return document.execCommand('copy');
+        copied = document.execCommand('copy');
+    } catch (err) {
+        console.error('execCommand copy error:', err);
     } finally {
         temporaryTextarea.remove();
     }
+    return copied;
 }
 
 async function copyTextToClipboard(text) {
+    if (text === undefined || text === null) text = '';
     if (window.isSecureContext && navigator.clipboard?.writeText) {
         try {
             await navigator.clipboard.writeText(text);
@@ -432,8 +476,8 @@ function makeDraggable(container, header) {
     let wasDragged = false;
 
     const onStart = (e) => {
-        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        const clientX = e.type.includes('mouse') ? e.clientX : (e.touches?.[0]?.clientX || 0);
+        const clientY = e.type.includes('mouse') ? e.clientY : (e.touches?.[0]?.clientY || 0);
         const target = e.target;
         
         if (!container.classList.contains('minimized')) {
@@ -449,16 +493,23 @@ function makeDraggable(container, header) {
         initialX = rect.left;
         initialY = rect.top;
         document.body.style.userSelect = 'none';
+        container.classList.add('dragging');
+        if (e.type.startsWith('touch') && container.classList.contains('minimized')) {
+            e.preventDefault();
+        }
     };
 
     const onMove = (e) => {
         if (!isDragging) return;
-        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        const clientX = e.type.includes('mouse') ? e.clientX : (e.touches?.[0]?.clientX || 0);
+        const clientY = e.type.includes('mouse') ? e.clientY : (e.touches?.[0]?.clientY || 0);
         const dx = clientX - startX;
         const dy = clientY - startY;
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
             wasDragged = true;
+        }
+        if (e.type.startsWith('touch')) {
+            e.preventDefault();
         }
         container.style.left = `${initialX + dx}px`;
         container.style.top = `${initialY + dy}px`;
@@ -469,15 +520,17 @@ function makeDraggable(container, header) {
         if (isDragging) {
             isDragging = false;
             document.body.style.userSelect = '';
+            container.classList.remove('dragging');
         }
     };
 
     container.addEventListener('mousedown', onStart);
-    container.addEventListener('touchstart', onStart, { passive: true });
+    container.addEventListener('touchstart', onStart, { passive: false });
     document.addEventListener('mousemove', onMove);
-    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('mouseup', onEnd);
     document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
 
     // Expand when clicking the minimized icon, but ONLY if it wasn't a drag action
     container.addEventListener('click', (e) => {
@@ -493,61 +546,86 @@ function makeDraggable(container, header) {
 }
 
 function makeResizable(container, handle) {
+    if (!handle) return;
     let isResizing = false;
     let startX, startY, startWidth, startHeight;
 
     const onStart = (e) => {
+        if (container.classList.contains('minimized')) return;
         isResizing = true;
-        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+        const clientX = e.type.includes('mouse') ? e.clientX : (e.touches?.[0]?.clientX || 0);
+        const clientY = e.type.includes('mouse') ? e.clientY : (e.touches?.[0]?.clientY || 0);
         startX = clientX;
         startY = clientY;
         startWidth = container.offsetWidth;
         startHeight = container.offsetHeight;
         document.body.style.userSelect = 'none';
+        container.classList.add('resizing');
         e.stopPropagation();
+        if (e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
     };
 
     const onMove = (e) => {
         if (!isResizing) return;
-        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-        const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-        container.style.width = `${Math.max(300, startWidth + (clientX - startX))}px`;
-        container.style.height = `${Math.max(200, startHeight + (clientY - startY))}px`;
+        const clientX = e.type.includes('mouse') ? e.clientX : (e.touches?.[0]?.clientX || 0);
+        const clientY = e.type.includes('mouse') ? e.clientY : (e.touches?.[0]?.clientY || 0);
+        if (e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+        const minWidth = Math.min(220, window.innerWidth - 20);
+        const minHeight = Math.min(180, window.innerHeight - 20);
+        const maxWidth = window.innerWidth - 10;
+        const maxHeight = window.innerHeight - 10;
+        const width = Math.min(maxWidth, Math.max(minWidth, startWidth + (clientX - startX)));
+        const height = Math.min(maxHeight, Math.max(minHeight, startHeight + (clientY - startY)));
+        container.style.width = `${width}px`;
+        container.style.height = `${height}px`;
     };
 
     const onEnd = () => {
         if (isResizing) {
             isResizing = false;
             document.body.style.userSelect = '';
+            container.classList.remove('resizing');
         }
     };
 
     handle.addEventListener('mousedown', onStart);
-    handle.addEventListener('touchstart', onStart, { passive: true });
+    handle.addEventListener('touchstart', onStart, { passive: false });
     document.addEventListener('mousemove', onMove);
-    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('mouseup', onEnd);
     document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
 }
 
 function makeSidebarResizable(sidebar, handle) {
+    if (!handle || !sidebar) return;
     let isResizing = false;
     let startX, startWidth;
 
     const onStart = (e) => {
         isResizing = true;
-        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+        const clientX = e.type.includes('mouse') ? e.clientX : (e.touches?.[0]?.clientX || 0);
         startX = clientX;
         startWidth = sidebar.offsetWidth;
         document.body.style.userSelect = 'none';
         e.stopPropagation();
+        if (e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
     };
 
     const onMove = (e) => {
         if (!isResizing) return;
-        const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
-        sidebar.style.width = `${Math.max(100, Math.min(startWidth + (clientX - startX), 400))}px`;
+        const clientX = e.type.includes('mouse') ? e.clientX : (e.touches?.[0]?.clientX || 0);
+        if (e.type.startsWith('touch')) {
+            e.preventDefault();
+        }
+        const maxSidebarWidth = Math.min(400, window.innerWidth * 0.7);
+        sidebar.style.width = `${Math.max(80, Math.min(startWidth + (clientX - startX), maxSidebarWidth))}px`;
     };
 
     const onEnd = () => {
@@ -558,11 +636,12 @@ function makeSidebarResizable(sidebar, handle) {
     };
 
     handle.addEventListener('mousedown', onStart);
-    handle.addEventListener('touchstart', onStart, { passive: true });
+    handle.addEventListener('touchstart', onStart, { passive: false });
     document.addEventListener('mousemove', onMove);
-    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('mouseup', onEnd);
     document.addEventListener('touchend', onEnd);
+    document.addEventListener('touchcancel', onEnd);
 }
 
 // Core Button Injection

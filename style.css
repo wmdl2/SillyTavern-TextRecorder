@@ -1,10 +1,12 @@
 /* Base Container */
 .st-text-recorder-container {
     position: fixed;
-    top: 50px;
-    left: 50px;
-    width: 600px;
-    height: 450px;
+    top: min(50px, 8vh);
+    left: min(50px, 4vw);
+    width: min(600px, 92vw);
+    height: min(450px, 75vh);
+    max-width: 98vw;
+    max-height: 95vh;
     background: var(--SmartThemeBlurTintColor, var(--black70a));
     backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
     border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
@@ -17,6 +19,11 @@
     font-family: inherit;
     overflow: hidden;
     transition: width 0.3s ease, height 0.3s ease;
+}
+
+.st-text-recorder-container.dragging,
+.st-text-recorder-container.resizing {
+    transition: none !important;
 }
 
 /* Themes */
@@ -289,6 +296,7 @@
     cursor: col-resize;
     background: transparent;
     transition: background 0.2s;
+    touch-action: none;
 }
 .st-text-recorder-resizer-x:hover {
     background: var(--SmartThemeInteractableColor, rgba(255, 255, 255, 0.3));
@@ -361,13 +369,35 @@
 /* Resize Handle (Bottom Right) */
 .st-text-recorder-resize-handle {
     position: absolute;
-    bottom: 2px;
-    right: 2px;
-    width: 15px;
-    height: 15px;
+    bottom: 0px;
+    right: 0px;
+    width: 28px;
+    height: 28px;
     cursor: nwse-resize;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255, 255, 255, 0.5);
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0 4px 4px 0;
+    color: rgba(255, 255, 255, 0.45);
+    touch-action: none;
+    z-index: 20;
+    user-select: none;
+}
+.st-text-recorder-resize-handle:hover,
+.st-text-recorder-resize-handle:active {
+    color: var(--SmartThemeBodyColor, #fff);
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 768px) {
+    .st-text-recorder-resize-handle {
+        width: 36px;
+        height: 36px;
+        padding: 0 6px 6px 0;
+        font-size: 16px;
+        color: rgba(255, 255, 255, 0.7);
+    }
+    .st-text-recorder-sidebar {
+        min-width: 80px;
+    }
 }
